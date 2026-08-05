@@ -1,5 +1,7 @@
 from fastapi import FastAPI
 
+from app.api.routes.health import router as health_router
+
 app = FastAPI(
     title="Helios Terminal API",
     description="Multi-agent decision intelligence platform for AI sourcing strategy and dependency risk analysis.",
@@ -7,7 +9,4 @@ app = FastAPI(
 )
 
 
-@app.get("/health")
-def health_check():
-    """Basic liveness check — confirms the API is up."""
-    return {"status": "ok"}
+app.include_router(health_router)
