@@ -44,6 +44,8 @@ Example: `Update - 1.1 - initial repo scaffolding`
   Commit: `Update - 3.1 - LLM client wrapper`
 - [ ] 3.2 — `backend/app/retrieval/web_search.py` — thin wrapper for retrieval/web-search augmentation
   Commit: `Update - 3.2 - web search retrieval wrapper`
+- [ ] 3.3 — Pin DeepSeek V4 Flash as the default model: set it in `backend/app/core/config.py` (env var default) and `.env.example`. No changes to the client wrapper's interface — this only sets which model it points to by default.
+  Commit: `Update - 3.3 - pin DeepSeek V4 Flash as default LLM`
 
 ## Phase 4 — Verification Layer (build before agents depend on it)
 
@@ -52,22 +54,75 @@ Example: `Update - 1.1 - initial repo scaffolding`
 - [ ] 4.2 — `backend/app/verification/verifier.py` — function that checks a claim against a source (start simple: presence/consistency check, not full semantic verification); unit tests for verifier with a known-good and known-bad claim/source pair
   Commit: `Update - 4.2 - verification layer (claim-source checking)`
 
-## Phase 5 — Agents, One at a Time
+## Phase 5 — Agents, One Sub-Agent at a Time
 
-Build and commit each agent **separately**. Do not write two agents in the same commit, even if it feels efficient.
+Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents**, all running on DeepSeek V4 Flash via the Phase 3 client wrapper. Build sub-agents first, one at a time, then the parent that wires them together. Do not write two sub-agents (or a sub-agent + its parent) in the same commit, even if it feels efficient. The third sub-agent in each group is optional/stretch — skip it if you're short on time and let the parent do that step's work directly; note the skip in the parent's commit message if so.
 
-- [ ] 5.1 — `agents/ingestion_agent.py` — takes a decision brief, returns structured context (start with a stub/mock LLM call if needed); unit test
-  Commit: `Update - 5.1 - ingestion agent`
-- [ ] 5.2 — `agents/stack_mapping_agent.py` — takes context, returns stack layers touched; unit test
-  Commit: `Update - 5.2 - stack-mapping agent`
-- [ ] 5.3 — `agents/scenario_generation_agent.py` — takes stack scope, returns realistic option set; unit test
-  Commit: `Update - 5.3 - scenario-generation agent`
-- [ ] 5.4 — `agents/outcome_prediction_agent.py` — takes scenarios, returns projected outcomes; unit test
-  Commit: `Update - 5.4 - outcome-prediction agent`
-- [ ] 5.5 — `agents/dependency_diagnosis_agent.py` — takes outcomes, returns dependency/lock-in diagnosis; unit test
-  Commit: `Update - 5.5 - dependency-diagnosis agent`
-- [ ] 5.6 — `agents/orchestrator_agent.py` — takes all diagnoses, returns comparative verdict; unit test
-  Commit: `Update - 5.6 - orchestrator agent`
+### 5A — Ingestion Agent
+
+- [ ] 5.1 — `agents/ingestion/sub_agents/web_scraping_sub_agent.py` — pulls public info on entity/capability via web search; unit test (mocked search)
+  Commit: `Update - 5.1 - ingestion sub-agent: web scraping`
+- [ ] 5.2 — `agents/ingestion/sub_agents/structured_source_sub_agent.py` — pulls from known structured sources (HF Hub, BIS Entity List, TPDi, market-share reports); unit test
+  Commit: `Update - 5.2 - ingestion sub-agent: structured source`
+- [ ] 5.3 — (optional) `agents/ingestion/sub_agents/context_synthesis_sub_agent.py` — merges 5.1 + 5.2 outputs into structured context; unit test
+  Commit: `Update - 5.3 - ingestion sub-agent: context synthesis`
+- [ ] 5.4 — `agents/ingestion/ingestion_agent.py` — parent: calls sub-agents above (parallel where independent), merges/returns structured context; unit + integration test
+  Commit: `Update - 5.4 - ingestion agent (parent)`
+
+### 5B — Stack-Mapping Agent
+
+- [ ] 5.5 — `agents/stack_mapping/sub_agents/layer_identification_sub_agent.py` — proposes candidate AI-stack layers from context; unit test
+  Commit: `Update - 5.5 - stack-mapping sub-agent: layer identification`
+- [ ] 5.6 — `agents/stack_mapping/sub_agents/relevance_filter_sub_agent.py` — narrows candidates to layers this decision touches; unit test
+  Commit: `Update - 5.6 - stack-mapping sub-agent: relevance filter`
+- [ ] 5.7 — (optional) `agents/stack_mapping/sub_agents/dependency_linkage_sub_agent.py` — maps how surviving layers interconnect; unit test
+  Commit: `Update - 5.7 - stack-mapping sub-agent: dependency linkage`
+- [ ] 5.8 — `agents/stack_mapping/stack_mapping_agent.py` — parent: orchestrates 5.5-5.7, returns stack scope; unit + integration test
+  Commit: `Update - 5.8 - stack-mapping agent (parent)`
+
+### 5C — Scenario-Generation Agent
+
+- [ ] 5.9 — `agents/scenario_generation/sub_agents/option_enumeration_sub_agent.py` — generates raw candidate option set; unit test
+  Commit: `Update - 5.9 - scenario-generation sub-agent: option enumeration`
+- [ ] 5.10 — `agents/scenario_generation/sub_agents/feasibility_check_sub_agent.py` — filters out unrealistic options (depends on 5.9's output); unit test
+  Commit: `Update - 5.10 - scenario-generation sub-agent: feasibility check`
+- [ ] 5.11 — (optional) `agents/scenario_generation/sub_agents/scenario_refinement_sub_agent.py` — sharpens surviving options into full scenarios; unit test
+  Commit: `Update - 5.11 - scenario-generation sub-agent: scenario refinement`
+- [ ] 5.12 — `agents/scenario_generation/scenario_generation_agent.py` — parent: orchestrates 5.9-5.11, returns option set; unit + integration test
+  Commit: `Update - 5.12 - scenario-generation agent (parent)`
+
+### 5D — Outcome-Prediction Agent
+
+- [ ] 5.13 — `agents/outcome_prediction/sub_agents/trajectory_modeling_sub_agent.py` — projects forward path for each scenario; unit test
+  Commit: `Update - 5.13 - outcome-prediction sub-agent: trajectory modeling`
+- [ ] 5.14 — `agents/outcome_prediction/sub_agents/risk_factor_sub_agent.py` — identifies events/conditions that could alter the trajectory; unit test
+  Commit: `Update - 5.14 - outcome-prediction sub-agent: risk factor`
+- [ ] 5.15 — (optional) `agents/outcome_prediction/sub_agents/timeline_projection_sub_agent.py` — attaches time horizons to outcomes; unit test
+  Commit: `Update - 5.15 - outcome-prediction sub-agent: timeline projection`
+- [ ] 5.16 — `agents/outcome_prediction/outcome_prediction_agent.py` — parent: orchestrates 5.13-5.15, returns projected outcomes; unit + integration test
+  Commit: `Update - 5.16 - outcome-prediction agent (parent)`
+
+### 5E — Dependency-Diagnosis Agent
+
+- [ ] 5.17 — `agents/dependency_diagnosis/sub_agents/lock_in_identification_sub_agent.py` — names the specific dependency per outcome; unit test
+  Commit: `Update - 5.17 - dependency-diagnosis sub-agent: lock-in identification`
+- [ ] 5.18 — `agents/dependency_diagnosis/sub_agents/failure_mode_sub_agent.py` — explains what breaks later if unmanaged; unit test
+  Commit: `Update - 5.18 - dependency-diagnosis sub-agent: failure mode`
+- [ ] 5.19 — (optional) `agents/dependency_diagnosis/sub_agents/severity_scoring_sub_agent.py` — scores severity/urgency per dependency; unit test
+  Commit: `Update - 5.19 - dependency-diagnosis sub-agent: severity scoring`
+- [ ] 5.20 — `agents/dependency_diagnosis/dependency_diagnosis_agent.py` — parent: orchestrates 5.17-5.19, returns diagnoses; unit + integration test
+  Commit: `Update - 5.20 - dependency-diagnosis agent (parent)`
+
+### 5F — Orchestrator Agent
+
+- [ ] 5.21 — `agents/orchestrator/sub_agents/cross_path_comparison_sub_agent.py` — compares diagnoses across all paths; unit test
+  Commit: `Update - 5.21 - orchestrator sub-agent: cross-path comparison`
+- [ ] 5.22 — `agents/orchestrator/sub_agents/verdict_synthesis_sub_agent.py` — produces final comparative verdict text; unit test
+  Commit: `Update - 5.22 - orchestrator sub-agent: verdict synthesis`
+- [ ] 5.23 — (optional) `agents/orchestrator/sub_agents/explanation_trail_sub_agent.py` — assembles source-grounded reasoning trail; unit test
+  Commit: `Update - 5.23 - orchestrator sub-agent: explanation trail`
+- [ ] 5.24 — `agents/orchestrator/orchestrator_agent.py` — parent: orchestrates 5.21-5.23, returns comparative verdict; unit + integration test
+  Commit: `Update - 5.24 - orchestrator agent (parent)`
 
 ## Phase 6 — Pipeline Wiring
 

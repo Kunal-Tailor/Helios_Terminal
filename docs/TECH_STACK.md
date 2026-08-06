@@ -14,8 +14,9 @@
 
 ## LLM Layer
 
-- **Models:** Claude / GPT API for the reasoning agents (Ingestion, Stack-Mapping, Scenario-Generation, Outcome-Prediction, Dependency-Diagnosis, Orchestrator)
-- **Grounding:** Web-search / retrieval augmentation to support the verification layer
+- **Model (pinned):** DeepSeek-V4-Flash-0731 — used for every top-level agent AND every sub-agent (see ARCHITECTURE.md §3.1-3.8). Chosen for low cost at high call volume (~18-24 LLM-calling components across the full pipeline) combined with sufficient reasoning capability for this task.
+- **Access:** Via the shared LLM client wrapper (`backend/app/llm/client.py`) — the model is set through config/env vars, never hardcoded per agent, so it can be swapped later without touching agent code.
+- **Grounding:** Web-search / retrieval augmentation to support the verification layer and the Ingestion Agent's sub-agents
 
 ## Scenario Engine
 
