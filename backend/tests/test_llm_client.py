@@ -1,0 +1,99 @@
+"""
+Unit tests for app.llm.client.
+
+All LLM API calls are mocked — no network access, no API key required.
+Tests cover:
+  - complete() dispatches to Anthropic by default
+  - complete() dispatches to OpenAI when provider="openai"
+  - complete() raises ValueError for an unknown provider
+  - RuntimeError is raised when the API key is missing
+"""
+
+from unittest.mock import MagicMock, patch
+
+import pytest
+
+from app.llm.client import complete
+
+
+# ---------------------------------------------------------------------------
+# Anthropic (default provider)
+# ---------------------------------------------------------------------------
+
+def test_complete_anthropic_returns_text():
+    """complete() with default provider calls Anthropic and returns reply text."""
+    mock_text = "This is a mocked Anthropic response."
+
+    # Build a mock that mirrors the Anthropic SDK response structure:
+    # client.messages.create(...).content[0].text
+    mock_content_block = MagicMock()
+    mock_content_block.text = mock_text
+
+    mock_message = MagicMock()
+    mock_message.content = [mock_content_block]
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.messages.create.return_value = mock_message
+
+    with patch("app.llm.client.anthropic.Anthropic", return_value=mock_client_instance):
+        with patch("app.llm.client.settings") as mock_settings:
+            mock_settings.anthropic_api_key = "test-anthropic-key"
+            result = complete("Hello from test")
+
+    assert result == mock_text
+
+
+def test_complete_anthropic_raises_when_key_missing():
+    """complete() raises RuntimeError when ANTHROPIC_API_KEY is not set."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.anthropic_api_key = ""
+        with pytest.raises(RuntimeError, match="ANTHROPIC_API_KEY"):
+            complete("Hello")
+
+
+# ---------------------------------------------------------------------------
+# OpenAI (explicit provider)
+# ---------------------------------------------------------------------------
+
+def test_complete_openai_returns_text():
+    """complete(provider='openai') calls OpenAI and returns reply text."""
+    mock_text = "This is a mocked OpenAI response."
+
+    # Mirror the OpenAI SDK response structure:
+    # client.chat.completions.create(...).choices[0].message.content
+    mock_message = MagicMock()
+    mock_message.content = mock_text
+
+    mock_choice = MagicMock()
+    mock_choice.message = mock_message
+
+    mock_response = MagicMock()
+    mock_response.choices = [mock_choice]
+
+    mock_client_instance = MagicMock()
+    mock_client_instance.chat.completions.create.return_value = mock_response
+
+    with patch("app.llm.client.openai.OpenAI", return_value=mock_client_instance):
+        with patch("app.llm.client.settings") as mock_settings:
+            mock_settings.openai_api_key = "test-openai-key"
+            result = complete("Hello from test", provider="openai")
+
+    assert result == mock_text
+
+
+def test_complete_openai_raises_when_key_missing():
+    """complete(provider='openai') raises RuntimeError when OPENAI_API_KEY is not set."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.openai_api_key = ""
+        with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+            complete("Hello", provider="openai")
+
+
+# ---------------------------------------------------------------------------
+# Unknown provider
+# ---------------------------------------------------------------------------
+
+def test_complete_raises_for_unknown_provider():
+    """complete() raises ValueError for an unrecognised provider name."""
+    with pytest.raises(ValueError, match="Unknown provider"):
+        complete("Hello", provider="some_unknown_llm")
