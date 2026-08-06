@@ -1,10 +1,11 @@
 """
-LLM client wrapper — thin layer over Anthropic (Claude) and OpenAI (GPT) APIs.
+LLM client wrapper — thin layer over DeepSeek (primary), Anthropic, and OpenAI APIs.
 
 Public API
 ----------
-    complete(prompt: str, provider: str = "anthropic") -> str
+    complete(prompt: str, provider: str = "deepseek") -> str
 
+The active model is controlled by settings.default_model (env var DEFAULT_MODEL).
 Reads API keys from app.core.config.settings.
 Raises RuntimeError if the required key is not set.
 No retry logic, streaming, or token management here — those belong in the agents.
@@ -15,13 +16,8 @@ import openai
 
 from app.core.config import settings
 
-# Default models — one per provider.
-# These are the cost-effective options suitable for agent reasoning tasks.
-_ANTHROPIC_MODEL = "claude-3-5-haiku-latest"
-_OPENAI_MODEL = "gpt-4o-mini"
 
-
-def complete(prompt: str, provider: str = "anthropic") -> str:
+def complete(prompt: str, provider: str = "deepseek") -> str:
     """Send *prompt* to the chosen LLM provider and return the response text.
 
     Parameters
@@ -29,7 +25,11 @@ def complete(prompt: str, provider: str = "anthropic") -> str:
     prompt:
         The user-turn text to send.
     provider:
-        ``"anthropic"`` (default) or ``"openai"``.
+        ``"deepseek"`` (default — DeepSeek V4 Flash via OpenAI-compatible API),
+        ``"anthropic"``, or ``"openai"``.
+
+    The model used is ``settings.default_model`` (env var ``DEFAULT_MODEL``).
+    Override it per-call by setting a different model in the environment.
 
     Returns
     -------
@@ -43,18 +43,38 @@ def complete(prompt: str, provider: str = "anthropic") -> str:
     RuntimeError
         If the API key for the requested provider is not configured.
     """
+    if provider == "deepseek":
+        return _call_deepseek(prompt)
     if provider == "anthropic":
         return _call_anthropic(prompt)
     if provider == "openai":
         return _call_openai(prompt)
     raise ValueError(
-        f"Unknown provider '{provider}'. Choose 'anthropic' or 'openai'."
+        f"Unknown provider '{provider}'. Choose 'deepseek', 'anthropic', or 'openai'."
     )
 
 
 # ---------------------------------------------------------------------------
 # Private helpers — one per provider
 # ---------------------------------------------------------------------------
+
+def _call_deepseek(prompt: str) -> str:
+    """Call DeepSeek V4 Flash via its OpenAI-compatible API."""
+    if not settings.deepseek_api_key:
+        raise RuntimeError(
+            "DEEPSEEK_API_KEY is not set. "
+            "Add it to your .env file or environment before running agents."
+        )
+    client = openai.OpenAI(
+        api_key=settings.deepseek_api_key,
+        base_url=settings.deepseek_base_url,
+    )
+    response = client.chat.completions.create(
+        model=settings.default_model,  # DEFAULT_MODEL env var, default "deepseek-chat"
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return response.choices[0].message.content
+
 
 def _call_anthropic(prompt: str) -> str:
     if not settings.anthropic_api_key:
@@ -64,7 +84,7 @@ def _call_anthropic(prompt: str) -> str:
         )
     client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
     message = client.messages.create(
-        model=_ANTHROPIC_MODEL,
+        model=settings.default_model,  # DEFAULT_MODEL env var
         max_tokens=2048,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -79,7 +99,7 @@ def _call_openai(prompt: str) -> str:
         )
     client = openai.OpenAI(api_key=settings.openai_api_key)
     response = client.chat.completions.create(
-        model=_OPENAI_MODEL,
+        model=settings.default_model,  # DEFAULT_MODEL env var
         messages=[{"role": "user", "content": prompt}],
     )
     return response.choices[0].message.content
