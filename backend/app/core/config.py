@@ -9,6 +9,7 @@ production.
 Required env vars for the agent pipeline (set before running):
   ANTHROPIC_API_KEY   — Claude API key (primary LLM)
   OPENAI_API_KEY      — OpenAI API key (fallback / alternative LLM)
+  TAVILY_API_KEY      — Tavily web-search API key (retrieval augmentation)
 
 Optional:
   APP_ENV             — "development" | "production" (default: "development")
@@ -22,6 +23,9 @@ class Settings(BaseSettings):
     # LLM API keys — loaded from env vars, never hardcoded
     anthropic_api_key: str = ""
     openai_api_key: str = ""
+
+    # Retrieval API key
+    tavily_api_key: str = ""
 
     # Runtime environment
     app_env: str = "development"
