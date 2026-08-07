@@ -1,0 +1,162 @@
+"""
+Integration tests for POST /decisions API endpoint (app.api.routes.decisions).
+"""
+
+from unittest.mock import patch
+from fastapi.testclient import TestClient
+
+from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis, DiagnosisSet
+from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
+from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
+from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison, PathComparison
+from app.agents.orchestrator.sub_agents.explanation_trail_sub_agent import AuditStep, ExplanationTrail
+from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection, OutcomeSet
+from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
+from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
+from app.agents.stack_mapping.stack_mapping_agent import StackScope
+from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
+from app.main import app
+from app.pipeline.graph import PipelineResult
+
+client = TestClient(app)
+
+
+def test_post_decisions_endpoint_success():
+    """Test POST /decisions returns 200 OK with valid verdict payload."""
+    mock_verdict = OrchestratorVerdict(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        recommended_path="License Open-Weight Model",
+        verdict_summary="License open-weight model is recommended due to tactical offline autonomy.",
+        key_recommendations=["Pin weights hash", "Build in-house fine-tuning toolchain"],
+        path_stances={"License Open-Weight Model": "Recommended"},
+        cross_path_comparison=CrossPathComparison(
+            comparative_narrative="Open weights offers better autonomy than proprietary API.",
+            path_comparisons=[
+                PathComparison(
+                    scenario_name="License Open-Weight Model",
+                    lock_in_count=1,
+                    max_severity_score=7.5,
+                    key_tradeoffs=["Upstream dependency vs autonomy"],
+                    path_summary="Solid option.",
+                )
+            ],
+        ),
+        explanation_trail=ExplanationTrail(
+            summary="Reasoning trail based on tactical requirements.",
+            steps=[AuditStep(stage="Ingestion", claim="Offline requirement", evidence="Brief")],
+            sources=["https://example.com/source1"],
+        ),
+    )
+
+    mock_result = PipelineResult(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house", "license open-weight"],
+        verdict=mock_verdict,
+        verification_passed=True,
+    )
+
+    payload = {
+        "entity": "Indian Army signals division",
+        "capability": "small language model for edge inference",
+        "options": ["build in-house", "license open-weight"],
+    }
+
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result) as mock_run:
+        response = client.post("/decisions", json=payload)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["entity"] == "Indian Army signals division"
+        assert data["capability"] == "small language model for edge inference"
+        assert data["options"] == ["build in-house", "license open-weight"]
+        assert data["verification_passed"] is True
+        assert data["verdict"] is not None
+        assert data["verdict"]["recommended_path"] == "License Open-Weight Model"
+        assert data["verdict"]["verdict_summary"] == "License open-weight model is recommended due to tactical offline autonomy."
+        assert len(data["verdict"]["key_recommendations"]) == 2
+
+        mock_run.assert_called_once_with(
+            entity="Indian Army signals division",
+            capability="small language model for edge inference",
+            options=["build in-house", "license open-weight"],
+        )
+
+
+def test_post_decisions_endpoint_validation_error():
+    """Test POST /decisions returns 422 Unprocessable Entity when required fields are missing."""
+    invalid_payload = {
+        "entity": "Indian Army signals division",
+        # Missing required capability field
+    }
+
+    response = client.post("/decisions", json=invalid_payload)
+    assert response.status_code == 422
+    errors = response.json()
+    assert "detail" in errors
+
+
+def test_post_decisions_endpoint_full_pipeline_flow():
+    """Test POST /decisions endpoint flowing through the pipeline with mocked agent calls."""
+    sample_context = IngestionContext(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        options=["build", "buy"],
+        context_summary="Speech Recognition requirements for ACME Corp model layer.",
+        key_facts=["Speech Recognition requirements."],
+        sources=["https://example.com"],
+    )
+
+    sample_scope = StackScope(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        layers=[StackLayer(name="Model", rationale="Speech Recognition requirements", evidence="Speech Recognition requirements for ACME Corp model layer.")],
+        links=[],
+    )
+
+    sample_scenarios = ScenarioSet(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        scenarios=[Scenario(name="Build", option_name="build", description="Speech Recognition requirements")],
+    )
+
+    sample_outcomes = OutcomeSet(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        outcomes=[],
+    )
+
+    sample_diagnoses = DiagnosisSet(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        diagnoses=[],
+    )
+
+    sample_verdict = OrchestratorVerdict(
+        entity="ACME Corp",
+        capability="Speech Recognition",
+        recommended_path="Build",
+        verdict_summary="Recommended to build.",
+    )
+
+    payload = {
+        "entity": "ACME Corp",
+        "capability": "Speech Recognition",
+        "options": ["build", "buy"],
+    }
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=sample_context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=sample_scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=sample_scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=sample_outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=sample_diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=sample_verdict):
+
+        response = client.post("/decisions", json=payload)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert data["entity"] == "ACME Corp"
+        assert data["capability"] == "Speech Recognition"
+        assert data["verdict"]["recommended_path"] == "Build"
