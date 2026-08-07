@@ -1,0 +1,3 @@
+"""
+Pipeline test package initialization.
+"""
