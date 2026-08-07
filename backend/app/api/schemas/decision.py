@@ -1,5 +1,5 @@
 """
-Decision API Schemas — Pydantic models for decision brief request and verdict response.
+Decision API Schemas — Pydantic models for decision brief request, verdict response, and async jobs.
 
 Public API
 ----------
@@ -9,6 +9,8 @@ Public API
         Pydantic response schema returning pipeline verdict and verification metadata.
     OrchestratorVerdictSchema
         Nested response schema for OrchestratorVerdict data.
+    JobStatusResponse
+        Response schema for async background decision processing jobs.
 """
 
 from __future__ import annotations
@@ -180,3 +182,14 @@ class DecisionResponse(BaseModel):
             verification_failed_stage=res.verification_failed_stage,
             verification_results=ver_results,
         )
+
+
+class JobStatusResponse(BaseModel):
+    """Async background decision processing job status payload."""
+
+    job_id: str = Field(..., description="Unique background job UUID")
+    status: str = Field(..., description="Execution status: queued, processing, completed, failed")
+    created_at: str = Field(..., description="ISO 8601 timestamp when job was enqueued")
+    completed_at: Optional[str] = Field(None, description="ISO 8601 timestamp when job finished")
+    result: Optional[DecisionResponse] = Field(None, description="Decision verdict response if completed")
+    error: Optional[str] = Field(None, description="Error details if execution failed")

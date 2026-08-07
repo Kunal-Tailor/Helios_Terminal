@@ -1,5 +1,5 @@
 """
-Integration tests for POST /decisions API endpoint (app.api.routes.decisions).
+Integration tests for POST /decisions and async decision processing API endpoints (app.api.routes.decisions).
 """
 
 from unittest.mock import patch
@@ -160,3 +160,48 @@ def test_post_decisions_endpoint_full_pipeline_flow():
         assert data["entity"] == "ACME Corp"
         assert data["capability"] == "Speech Recognition"
         assert data["verdict"]["recommended_path"] == "Build"
+
+
+def test_post_decisions_async_and_get_job_status():
+    """Test POST /decisions/async enqueues job and GET /decisions/jobs/{job_id} retrieves status."""
+    payload = {
+        "entity": "Indian Army signals division",
+        "capability": "small language model for edge inference",
+        "options": ["build in-house"],
+    }
+
+    mock_verdict = OrchestratorVerdict(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        recommended_path="Build",
+        verdict_summary="Summary",
+    )
+    mock_result = PipelineResult(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house"],
+        verdict=mock_verdict,
+    )
+
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result):
+        # 1. Enqueue job
+        res_post = client.post("/decisions/async", json=payload)
+        assert res_post.status_code == 202
+        job_data = res_post.json()
+        assert "job_id" in job_data
+        assert job_data["status"] in ["queued", "processing", "completed"]
+        job_id = job_data["job_id"]
+
+        # 2. Get status
+        res_get = client.get(f"/decisions/jobs/{job_id}")
+        assert res_get.status_code == 200
+        get_data = res_get.json()
+        assert get_data["job_id"] == job_id
+        assert get_data["status"] in ["queued", "processing", "completed"]
+
+
+def test_get_decision_job_not_found():
+    """Test GET /decisions/jobs/{job_id} returns 404 for unknown job_id."""
+    res = client.get("/decisions/jobs/invalid-job-id-12345")
+    assert res.status_code == 404
+    assert "detail" in res.json()
