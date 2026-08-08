@@ -23,12 +23,15 @@ LayerLink is defined here as the canonical output type of this step.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -91,7 +94,12 @@ def run(layers: list[StackLayer], context: IngestionContext) -> list[LayerLink]:
     try:
         response = complete(prompt)
         return _parse_response(response)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in dependency_linkage_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 

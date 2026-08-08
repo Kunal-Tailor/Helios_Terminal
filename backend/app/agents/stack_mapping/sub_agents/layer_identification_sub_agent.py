@@ -28,11 +28,14 @@ layer-identification step; the Relevance-Filter Sub-Agent (5.6) imports it.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -83,7 +86,12 @@ def run(context: IngestionContext) -> list[StackLayer]:
     try:
         response = complete(prompt)
         return _parse_response(response)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in layer_identification_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -133,12 +141,12 @@ Candidate layer types (use these names where applicable, or introduce new ones i
 Respond in exactly this repeating block format — one block per layer, separated by ---:
 
 LAYER: <short canonical layer name>
-RATIONALE: <one sentence: why this decision implicates this layer>
-EVIDENCE: <one sentence: which specific fact or source detail supports this>
+RATIONALE: <one sentence: analytical inference explaining why this decision implicates this layer>
+EVIDENCE: <short direct restatement or quote of the specific fact strictly from the Key Facts or Ingested Context Summary above that justifies why this layer is implicated. MUST closely echo the actual wording and terms from the key facts or context summary. DO NOT quote or reference the candidate options; only quote from Key Facts or Ingested Context Summary.>
 ---
 LAYER: <next layer name>
-RATIONALE: <rationale>
-EVIDENCE: <evidence>
+RATIONALE: <analytical inference rationale>
+EVIDENCE: <direct restatement of grounded fact from Key Facts or Context Summary>
 ---
 """
 

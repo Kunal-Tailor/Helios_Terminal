@@ -159,6 +159,22 @@ def run_pipeline(
             capability=capability,
             options=options_list,
         )
+        if not result.ingestion_context or (not result.ingestion_context.context_summary and not result.ingestion_context.key_facts):
+            result.verification_passed = False
+            result.verification_failed_stage = "ingestion"
+            reason = "stage did not execute: ingestion returned empty context"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: ingestion",
+                    agent_stage="ingestion",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'ingestion' due to empty output.")
+            return result
+
         if result.ingestion_context:
             context_summary = result.ingestion_context.context_summary or ""
         _register_ingestion_claims(result.ingestion_context, source_store)
@@ -173,6 +189,15 @@ def run_pipeline(
         logger.error("Error executing stage 'ingestion': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "ingestion"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: ingestion",
+                agent_stage="ingestion",
+            )
+        )
         return result
 
     # -----------------------------------------------------------------------
@@ -182,7 +207,23 @@ def run_pipeline(
         result.stack_scope = stack_mapping_agent.run(
             context=result.ingestion_context,
         )
-        _register_stack_mapping_claims(result.stack_scope, context_summary, source_store)
+        if not result.stack_scope or not result.stack_scope.layers:
+            result.verification_passed = False
+            result.verification_failed_stage = "stack_mapping"
+            reason = "stage did not execute: stack_mapping returned empty scope"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: stack_mapping",
+                    agent_stage="stack_mapping",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'stack_mapping' due to empty output.")
+            return result
+
+        _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
         vr_2 = verify_stage(source_store, "stack_mapping")
         result.verification_results.extend(vr_2)
         if halt_on_verification_failure and any(not v.passed for v in vr_2):
@@ -194,6 +235,15 @@ def run_pipeline(
         logger.error("Error executing stage 'stack_mapping': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "stack_mapping"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: stack_mapping",
+                agent_stage="stack_mapping",
+            )
+        )
         return result
 
     # -----------------------------------------------------------------------
@@ -203,7 +253,23 @@ def run_pipeline(
         result.scenario_set = scenario_generation_agent.run(
             stack_scope=result.stack_scope,
         )
-        _register_scenario_generation_claims(result.scenario_set, context_summary, source_store)
+        if not result.scenario_set or not result.scenario_set.scenarios:
+            result.verification_passed = False
+            result.verification_failed_stage = "scenario_generation"
+            reason = "stage did not execute: scenario_generation returned empty scenario set"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: scenario_generation",
+                    agent_stage="scenario_generation",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'scenario_generation' due to empty output.")
+            return result
+
+        _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
         vr_3 = verify_stage(source_store, "scenario_generation")
         result.verification_results.extend(vr_3)
         if halt_on_verification_failure and any(not v.passed for v in vr_3):
@@ -215,6 +281,15 @@ def run_pipeline(
         logger.error("Error executing stage 'scenario_generation': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "scenario_generation"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: scenario_generation",
+                agent_stage="scenario_generation",
+            )
+        )
         return result
 
     # -----------------------------------------------------------------------
@@ -224,7 +299,23 @@ def run_pipeline(
         result.outcome_set = outcome_prediction_agent.run(
             scenario_set=result.scenario_set,
         )
-        _register_outcome_prediction_claims(result.outcome_set, context_summary, source_store)
+        if not result.outcome_set or not result.outcome_set.outcomes:
+            result.verification_passed = False
+            result.verification_failed_stage = "outcome_prediction"
+            reason = "stage did not execute: outcome_prediction returned empty outcome set"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: outcome_prediction",
+                    agent_stage="outcome_prediction",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'outcome_prediction' due to empty output.")
+            return result
+
+        _register_outcome_prediction_claims(result.outcome_set, result.scenario_set, source_store)
         vr_4 = verify_stage(source_store, "outcome_prediction")
         result.verification_results.extend(vr_4)
         if halt_on_verification_failure and any(not v.passed for v in vr_4):
@@ -236,6 +327,15 @@ def run_pipeline(
         logger.error("Error executing stage 'outcome_prediction': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "outcome_prediction"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: outcome_prediction",
+                agent_stage="outcome_prediction",
+            )
+        )
         return result
 
     # -----------------------------------------------------------------------
@@ -245,7 +345,23 @@ def run_pipeline(
         result.diagnosis_set = dependency_diagnosis_agent.run(
             outcome_set=result.outcome_set,
         )
-        _register_dependency_diagnosis_claims(result.diagnosis_set, context_summary, source_store)
+        if not result.diagnosis_set or not result.diagnosis_set.diagnoses:
+            result.verification_passed = False
+            result.verification_failed_stage = "dependency_diagnosis"
+            reason = "stage did not execute: dependency_diagnosis returned empty diagnosis set"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: dependency_diagnosis",
+                    agent_stage="dependency_diagnosis",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to empty output.")
+            return result
+
+        _register_dependency_diagnosis_claims(result.diagnosis_set, result.outcome_set, source_store)
         vr_5 = verify_stage(source_store, "dependency_diagnosis")
         result.verification_results.extend(vr_5)
         if halt_on_verification_failure and any(not v.passed for v in vr_5):
@@ -257,6 +373,15 @@ def run_pipeline(
         logger.error("Error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "dependency_diagnosis"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: dependency_diagnosis",
+                agent_stage="dependency_diagnosis",
+            )
+        )
         return result
 
     # -----------------------------------------------------------------------
@@ -268,7 +393,23 @@ def run_pipeline(
             diagnosis_set=result.diagnosis_set,
             sources=sources,
         )
-        _register_orchestrator_claims(result.verdict, context_summary, source_store)
+        if not result.verdict or (not result.verdict.recommended_path and not result.verdict.verdict_summary):
+            result.verification_passed = False
+            result.verification_failed_stage = "orchestrator"
+            reason = "stage did not execute: orchestrator returned empty verdict"
+            result.verification_results.append(
+                VerificationResult(
+                    passed=False,
+                    confidence=0.0,
+                    reason=reason,
+                    claim="Stage execution: orchestrator",
+                    agent_stage="orchestrator",
+                )
+            )
+            logger.warning("Pipeline halted at stage 'orchestrator' due to empty output.")
+            return result
+
+        _register_orchestrator_claims(result.verdict, result.diagnosis_set, source_store)
         vr_6 = verify_stage(source_store, "orchestrator")
         result.verification_results.extend(vr_6)
         if halt_on_verification_failure and any(not v.passed for v in vr_6):
@@ -280,6 +421,15 @@ def run_pipeline(
         logger.error("Error executing stage 'orchestrator': %s", exc, exc_info=True)
         result.verification_passed = False
         result.verification_failed_stage = "orchestrator"
+        result.verification_results.append(
+            VerificationResult(
+                passed=False,
+                confidence=0.0,
+                reason=f"stage did not execute: {exc}",
+                claim="Stage execution: orchestrator",
+                agent_stage="orchestrator",
+            )
+        )
         return result
 
     if any(not v.passed for v in result.verification_results):
@@ -292,14 +442,71 @@ run = run_pipeline
 
 
 # ---------------------------------------------------------------------------
-# Stage claim registration helpers
+# Stage claim registration helpers — chained verification
 # ---------------------------------------------------------------------------
+
+def _get_ingestion_context_text(ctx: IngestionContext | None) -> str:
+    """Return text representing Ingestion's verified output (context summary + key facts)."""
+    if not ctx:
+        return ""
+    parts = [ctx.context_summary] + ctx.key_facts
+    return "\n".join(p for p in parts if p)
+
+
+def _get_stack_mapping_context_text(scope: StackScope | None) -> str:
+    """Return text representing Stack-Mapping's verified output."""
+    if not scope:
+        return ""
+    lines = []
+    for layer in scope.layers:
+        lines.append(f"{layer.name}: {layer.rationale} {layer.evidence}".strip())
+    return "\n".join(lines)
+
+
+def _get_scenario_generation_context_text(sc_set: ScenarioSet | None) -> str:
+    """Return text representing Scenario-Generation's verified output."""
+    if not sc_set:
+        return ""
+    lines = []
+    for sc in sc_set.scenarios:
+        lines.append(f"{sc.name}: {sc.description}".strip())
+    return "\n".join(lines)
+
+
+def _get_outcome_prediction_context_text(out_set: OutcomeSet | None) -> str:
+    """Return text representing Outcome-Prediction's verified output."""
+    if not out_set:
+        return ""
+    lines = []
+    for out in out_set.outcomes:
+        traj_summary = out.trajectory.summary if out.trajectory else ""
+        lines.append(f"{out.scenario_name}: {traj_summary}".strip())
+        for rf in out.risk_factors:
+            lines.append(f"{rf.factor_name}: {rf.description}".strip())
+    return "\n".join(lines)
+
+
+def _get_dependency_diagnosis_context_text(diag_set: DiagnosisSet | None) -> str:
+    """Return text representing Dependency-Diagnosis's verified output."""
+    if not diag_set:
+        return ""
+    lines = []
+    for diag in diag_set.diagnoses:
+        for fm in diag.failure_modes:
+            lines.append(
+                f"{fm.scenario_name} {fm.dependency_name}: {fm.failure_mode_title} {fm.what_breaks} "
+                f"{fm.trigger_condition} {fm.time_horizon}".strip()
+            )
+    return "\n".join(lines)
+
 
 def _register_ingestion_claims(ctx: IngestionContext | None, store: SourceStore) -> None:
     """Extract sourced claims from Stage 1: Ingestion Context."""
     if not ctx:
         return
-    source_text = ctx.context_summary or ""
+    # Use raw retrieved content (web & structured source snippets) for claim verification,
+    # falling back to context_summary if raw_retrieved_content is empty.
+    source_text = ctx.raw_retrieved_content if ctx.raw_retrieved_content else (ctx.context_summary or "")
     source_url = ctx.sources[0] if ctx.sources else None
     for fact in ctx.key_facts:
         if fact.strip():
@@ -313,13 +520,20 @@ def _register_ingestion_claims(ctx: IngestionContext | None, store: SourceStore)
             )
 
 
-def _register_stack_mapping_claims(scope: StackScope | None, context_summary: str, store: SourceStore) -> None:
-    """Extract sourced claims from Stage 2: Stack Scope."""
+def _register_stack_mapping_claims(
+    scope: StackScope | None,
+    ingestion_ctx: IngestionContext | None,
+    store: SourceStore,
+) -> None:
+    """Extract sourced claims from Stage 2: Stack Scope, verifying grounded facts against Ingestion's verified output."""
     if not scope:
         return
+    prior_context = _get_ingestion_context_text(ingestion_ctx)
     for layer in scope.layers:
-        claim_text = f"{layer.name}: {layer.rationale}" if layer.rationale else layer.name
-        source_text = layer.evidence if layer.evidence else context_summary
+        # Verify the grounded_in fact (layer.evidence) against Ingestion's verified output,
+        # while layer.rationale (analytical inference) flows downstream on the StackLayer object.
+        claim_text = layer.evidence if layer.evidence else (f"{layer.name}: {layer.rationale}" if layer.rationale else layer.name)
+        source_text = prior_context
         store.add(
             SourcedClaim(
                 claim=claim_text,
@@ -329,27 +543,42 @@ def _register_stack_mapping_claims(scope: StackScope | None, context_summary: st
         )
 
 
-def _register_scenario_generation_claims(sc_set: ScenarioSet | None, context_summary: str, store: SourceStore) -> None:
-    """Extract sourced claims from Stage 3: Scenario Set."""
+def _register_scenario_generation_claims(
+    sc_set: ScenarioSet | None,
+    stack_scope: StackScope | None,
+    store: SourceStore,
+) -> None:
+    """Extract sourced claims from Stage 3: Scenario Set, verifying grounded facts against Stack-Mapping's verified output."""
     if not sc_set:
         return
+    prior_context = _get_stack_mapping_context_text(stack_scope)
     for sc in sc_set.scenarios:
-        claim_text = f"{sc.name}: {sc.description}" if sc.description else sc.name
+        # Verify the grounded_in fact (sc.grounded_in) against Stack-Mapping's verified output,
+        # while sc.description (the full scenario description) flows downstream on the Scenario object.
+        claim_text = sc.grounded_in if sc.grounded_in else (f"{sc.name}: {sc.description}" if sc.description else sc.name)
         store.add(
             SourcedClaim(
                 claim=claim_text,
-                source_text=context_summary,
+                source_text=prior_context,
                 agent_stage="scenario_generation",
             )
         )
 
 
-def _register_outcome_prediction_claims(out_set: OutcomeSet | None, context_summary: str, store: SourceStore) -> None:
-    """Extract sourced claims from Stage 4: Outcome Set."""
+def _register_outcome_prediction_claims(
+    out_set: OutcomeSet | None,
+    sc_set: ScenarioSet | None,
+    store: SourceStore,
+) -> None:
+    """Extract sourced claims from Stage 4: Outcome Set, verifying grounded facts against Scenario-Generation's verified output."""
     if not out_set:
         return
+    prior_context = _get_scenario_generation_context_text(sc_set)
     for out in out_set.outcomes:
-        claim_text = (
+        # Verify the grounded_in fact (out.trajectory.grounded_in) against Scenario-Generation's verified output,
+        # while out.trajectory.summary (the trajectory projection) flows downstream.
+        grounded = out.trajectory.grounded_in if (out.trajectory and out.trajectory.grounded_in) else ""
+        claim_text = grounded if grounded else (
             f"{out.scenario_name}: {out.trajectory.summary}"
             if out.trajectory and out.trajectory.summary
             else out.scenario_name
@@ -357,39 +586,66 @@ def _register_outcome_prediction_claims(out_set: OutcomeSet | None, context_summ
         store.add(
             SourcedClaim(
                 claim=claim_text,
-                source_text=context_summary,
+                source_text=prior_context,
                 agent_stage="outcome_prediction",
             )
         )
 
 
-def _register_dependency_diagnosis_claims(diag_set: DiagnosisSet | None, context_summary: str, store: SourceStore) -> None:
-    """Extract sourced claims from Stage 5: Diagnosis Set."""
+def _register_dependency_diagnosis_claims(
+    diag_set: DiagnosisSet | None,
+    out_set: OutcomeSet | None,
+    store: SourceStore,
+) -> None:
+    """Extract sourced claims from Stage 5: Diagnosis Set, verifying grounded facts against Outcome-Prediction's verified output."""
     if not diag_set:
         return
+    prior_context = _get_outcome_prediction_context_text(out_set)
+    outcome_map: dict[str, str] = {}
+    if out_set:
+        for out in out_set.outcomes:
+            grounded = (
+                out.trajectory.grounded_in
+                if (out.trajectory and out.trajectory.grounded_in)
+                else (out.trajectory.summary if out.trajectory else "")
+            )
+            if grounded:
+                outcome_map[out.scenario_name.lower()] = grounded
+
     for diag in diag_set.diagnoses:
+        fallback = outcome_map.get(diag.scenario_name.lower(), "")
         for fm in diag.failure_modes:
-            claim_text = f"{fm.scenario_name} {fm.dependency_name}: {fm.what_breaks}"
+            # Verify the grounded_in fact against Outcome-Prediction's verified output,
+            # falling back to the scenario's trajectory grounded fact/summary if empty.
+            claim_text = fm.grounded_in if fm.grounded_in else (fallback if fallback else f"{fm.scenario_name} {fm.dependency_name}: {fm.what_breaks}")
             store.add(
                 SourcedClaim(
                     claim=claim_text,
-                    source_text=context_summary,
+                    source_text=prior_context,
                     agent_stage="dependency_diagnosis",
                 )
             )
 
 
-def _register_orchestrator_claims(verdict: OrchestratorVerdict | None, context_summary: str, store: SourceStore) -> None:
-    """Extract sourced claims from Stage 6: Orchestrator Verdict."""
+def _register_orchestrator_claims(
+    verdict: OrchestratorVerdict | None,
+    diag_set: DiagnosisSet | None,
+    store: SourceStore,
+) -> None:
+    """Extract sourced claims from Stage 6: Orchestrator Verdict, verifying grounded facts against Dependency-Diagnosis's verified output."""
     if not verdict or not verdict.explanation_trail:
         return
+    prior_context = _get_dependency_diagnosis_context_text(diag_set)
+    fallback_line = prior_context.split("\n")[0] if prior_context else ""
     for step in verdict.explanation_trail.steps:
-        if step.claim:
-            source_text = step.evidence if step.evidence else context_summary
+        grounded = step.grounded_in.strip() if (step.grounded_in and step.grounded_in.strip().lower() not in ("none identified", "none", "n/a")) else ""
+        evidence = step.evidence.strip() if (step.evidence and step.evidence.strip().lower() not in ("none identified", "none", "n/a")) else ""
+        claim_text = grounded if grounded else (evidence if evidence else fallback_line)
+        if claim_text:
             store.add(
                 SourcedClaim(
-                    claim=step.claim,
-                    source_text=source_text,
+                    claim=claim_text,
+                    source_text=prior_context,
                     agent_stage="orchestrator",
                 )
             )

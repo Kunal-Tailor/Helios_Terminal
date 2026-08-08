@@ -24,11 +24,14 @@ option-enumeration step; the Feasibility-Check Sub-Agent (5.10) imports it.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -49,11 +52,15 @@ class Option:
     rationale:
         Why this option is viable given the stack scope (e.g., which layers
         it addresses or dependencies it creates).
+    grounded_in:
+        Short direct restatement of the specific fact(s) from Stack-Mapping's
+        context that justify why this option is realistic for this decision.
     """
 
     name: str
     description: str
     rationale: str = ""
+    grounded_in: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +68,7 @@ class Option:
 # ---------------------------------------------------------------------------
 
 def run(stack_scope: StackScope) -> list[Option]:
-    """Generate candidate sourcing options from *stack_scope*.
+    """Enumerate candidate sourcing options given *stack_scope*.
 
     Parameters
     ----------
@@ -79,7 +86,12 @@ def run(stack_scope: StackScope) -> list[Option]:
     try:
         response = complete(prompt)
         return _parse_response(response)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in option_enumeration_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -126,10 +138,12 @@ Focus on actionable, realistic options — not hypothetical edge cases. Consider
 Respond in exactly this repeating block format — one block per option, separated by ---:
 
 OPTION: <short canonical option name>
-DESCRIPTION: <2-3 sentences: what this option entails>
+GROUNDED_IN: <short direct restatement of the specific fact(s) from the STACK SCOPE or DECISION BRIEF above that justify why this option is realistic. MUST closely echo the actual wording and terms of the source stack layers above.>
+DESCRIPTION: <2-3 sentences: what this option entails (mechanics, specific software/hardware frameworks)>
 RATIONALE: <1-2 sentences: why this option makes sense given the stack scope>
 ---
 OPTION: <next option name>
+GROUNDED_IN: <direct restatement of grounded fact>
 DESCRIPTION: <description>
 RATIONALE: <rationale>
 ---
@@ -142,6 +156,7 @@ def _parse_response(response: str) -> list[Option]:
     Expected block format::
 
         OPTION: <name>
+        GROUNDED_IN: <text>
         DESCRIPTION: <text>
         RATIONALE: <text>
         ---
@@ -162,10 +177,18 @@ def _parse_response(response: str) -> list[Option]:
         if not name:
             continue  # skip malformed blocks
 
+        grounded_in = _extract_field(block, "GROUNDED_IN")
         description = _extract_field(block, "DESCRIPTION")
         rationale = _extract_field(block, "RATIONALE")
 
-        options.append(Option(name=name, description=description, rationale=rationale))
+        options.append(
+            Option(
+                name=name,
+                description=description,
+                rationale=rationale,
+                grounded_in=grounded_in,
+            )
+        )
 
     return options
 

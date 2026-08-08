@@ -21,11 +21,14 @@ Trajectory is defined here as the canonical output type of this step.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum number of scenarios to process in a single prompt call
 _MAX_SCENARIOS_PER_CALL = 5
@@ -51,6 +54,9 @@ class Trajectory:
         Projected impact on tech stack control, architecture, and technical debt.
     operational_impact:
         Projected impact on operational processes, team skills, and vendor reliance.
+    grounded_in:
+        Short direct restatement of the specific scenario/option from Scenario-Generation's
+        context that this projection is about.
     """
 
     scenario_name: str
@@ -58,6 +64,7 @@ class Trajectory:
     expected_outcomes: list[str] = field(default_factory=list)
     technical_impact: str = ""
     operational_impact: str = ""
+    grounded_in: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -86,7 +93,12 @@ def run(scenarios: list[Scenario]) -> list[Trajectory]:
     try:
         response = complete(prompt)
         return _parse_response(response, scenarios)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in trajectory_modeling_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -127,6 +139,7 @@ control evolves, and what operational changes occur.
 Respond in exactly this repeating block format — one block per scenario, separated by ---:
 
 TRAJECTORY: <exact scenario name>
+GROUNDED_IN: <short direct restatement of the specific scenario/option from the SCENARIOS above that this projection is about. MUST closely echo the actual wording and terms of the source scenario above.>
 SUMMARY: <2-3 sentence overview of where this scenario leads over time>
 EXPECTED OUTCOMES:
 - <projected outcome 1>
@@ -144,6 +157,7 @@ def _parse_response(response: str, scenarios: list[Scenario]) -> list[Trajectory
     Expected block format::
 
         TRAJECTORY: <scenario_name>
+        GROUNDED_IN: <text>
         SUMMARY: <text>
         EXPECTED OUTCOMES:
         - outcome 1
@@ -164,6 +178,7 @@ def _parse_response(response: str, scenarios: list[Scenario]) -> list[Trajectory
         if not name:
             continue
 
+        grounded_in = _extract_field(block, "GROUNDED_IN")
         summary = _extract_field(block, "SUMMARY")
         outcomes = _extract_bullet_list(block, "EXPECTED OUTCOMES")
         tech_impact = _extract_field(block, "TECHNICAL IMPACT")
@@ -176,6 +191,7 @@ def _parse_response(response: str, scenarios: list[Scenario]) -> list[Trajectory
                 expected_outcomes=outcomes,
                 technical_impact=tech_impact,
                 operational_impact=ops_impact,
+                grounded_in=grounded_in,
             )
         )
 

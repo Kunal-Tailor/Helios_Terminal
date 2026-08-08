@@ -29,11 +29,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    # --- Primary LLM: DeepSeek (OpenAI-compatible API) ---
+    # --- Active LLM Provider ---
+    llm_provider: str = "deepseek"
+
+    # --- DeepSeek (OpenAI-compatible API) ---
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
 
-    # Default model identifier — pinned to DeepSeek V4 Flash.
+    # --- OpenRouter (OpenAI-compatible API) ---
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+
+    # Default model identifier — pinned to model in use.
     # Override via DEFAULT_MODEL env var to swap models without touching code.
     default_model: str = "deepseek-chat"
 
@@ -47,6 +54,20 @@ class Settings(BaseSettings):
     # --- Runtime environment ---
     app_env: str = "development"
     log_level: str = "INFO"
+
+    @property
+    def llm_api_key(self) -> str:
+        provider = (self.llm_provider or "").lower()
+        if provider == "openrouter":
+            return self.openrouter_api_key or self.deepseek_api_key
+        return self.deepseek_api_key or self.openrouter_api_key
+
+    @property
+    def llm_base_url(self) -> str:
+        provider = (self.llm_provider or "").lower()
+        if provider == "openrouter":
+            return self.openrouter_base_url
+        return self.deepseek_base_url
 
     model_config = SettingsConfigDict(
         env_file=".env",           # load from .env if present

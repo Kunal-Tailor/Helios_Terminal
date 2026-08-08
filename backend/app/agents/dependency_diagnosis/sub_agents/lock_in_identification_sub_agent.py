@@ -20,11 +20,14 @@ LockInDependency is defined here as the canonical output type of this step.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum outcomes per LLM prompt call
 _MAX_OUTCOMES_PER_CALL = 5
@@ -50,6 +53,9 @@ class LockInDependency:
         Category of lock-in (e.g. "Vendor Lock-in", "Architectural Entanglement", "Data Lock-in").
     description:
         Explanation of how this dependency is created and maintained.
+    grounded_in:
+        Short direct restatement of the specific trajectory or outcome fact from Outcome-Prediction's context
+        that creates this lock-in.
     """
 
     scenario_name: str
@@ -57,6 +63,7 @@ class LockInDependency:
     layer_name: str = ""
     lock_in_type: str = ""
     description: str = ""
+    grounded_in: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -85,7 +92,12 @@ def run(outcomes: list[OutcomeProjection]) -> list[LockInDependency]:
     try:
         response = complete(prompt)
         return _parse_response(response, outcomes)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in lock_in_identification_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -98,6 +110,7 @@ def _build_prompt(outcomes: list[OutcomeProjection]) -> str:
     outcome_blocks = []
     for i, out in enumerate(outcomes[:_MAX_OUTCOMES_PER_CALL]):
         tr_summary = out.trajectory.summary if out.trajectory else "Not specified"
+        tr_grounded = out.trajectory.grounded_in if (out.trajectory and out.trajectory.grounded_in) else tr_summary
         tech_impact = out.trajectory.technical_impact if out.trajectory else "Not specified"
         ops_impact = out.trajectory.operational_impact if out.trajectory else "Not specified"
 
@@ -109,6 +122,7 @@ def _build_prompt(outcomes: list[OutcomeProjection]) -> str:
 
         block = (
             f"  OUTCOME {i + 1}: {out.scenario_name}\n"
+            f"  Grounded Outcome Fact: {tr_grounded}\n"
             f"  Trajectory Summary: {tr_summary}\n"
             f"  Technical Impact: {tech_impact}\n"
             f"  Operational Impact: {ops_impact}\n"
@@ -133,6 +147,7 @@ Respond in exactly this repeating block format — one block per lock-in point, 
 
 LOCK_IN: <short canonical dependency/lock-in name>
 SCENARIO: <exact scenario name>
+GROUNDED_IN: <short direct restatement of the specific outcome or trajectory fact from the PREDICTED SCENARIO OUTCOMES above that creates this lock-in. MUST closely echo the actual wording and terms of the source outcome above.>
 LAYER: <implicated stack layer, e.g. Model Weights, Inference Infra, Training Data>
 TYPE: <Vendor Lock-in, Architectural Entanglement, Data Lock-in, or Skill Set Lock-in>
 DESCRIPTION: <1-2 sentences explaining how this dependency is created by the outcome>
@@ -142,6 +157,7 @@ DESCRIPTION: <1-2 sentences explaining how this dependency is created by the out
 
 def _parse_response(response: str, outcomes: list[OutcomeProjection]) -> list[LockInDependency]:
     """Parse the structured LLM response into a list of :class:`LockInDependency` objects."""
+    outcome_map = {out.scenario_name: out for out in outcomes}
     raw_blocks = re.split(r"\n---+\s*", response.strip())
     dependencies: list[LockInDependency] = []
 
@@ -155,6 +171,11 @@ def _parse_response(response: str, outcomes: list[OutcomeProjection]) -> list[Lo
         if not dep_name or not scenario_name:
             continue
 
+        grounded_in = _extract_field(block, "GROUNDED_IN")
+        if not grounded_in and scenario_name in outcome_map:
+            out = outcome_map[scenario_name]
+            grounded_in = (out.trajectory.grounded_in if (out.trajectory and out.trajectory.grounded_in) else (out.trajectory.summary if out.trajectory else ""))
+
         layer_name = _extract_field(block, "LAYER")
         lock_in_type = _extract_field(block, "TYPE")
         description = _extract_field(block, "DESCRIPTION")
@@ -166,6 +187,7 @@ def _parse_response(response: str, outcomes: list[OutcomeProjection]) -> list[Lo
                 layer_name=layer_name,
                 lock_in_type=lock_in_type,
                 description=description,
+                grounded_in=grounded_in,
             )
         )
 

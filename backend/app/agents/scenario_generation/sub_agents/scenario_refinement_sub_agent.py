@@ -23,12 +23,15 @@ Scenario-Generation stage.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent import Option
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum number of options to refine in a single LLM call.
 # If there are more, they are batched to keep prompts token-efficient.
@@ -60,6 +63,9 @@ class Scenario:
     layers_addressed:
         Names of the stack layers (from StackScope) that this scenario
         directly addresses or resolves.
+    grounded_in:
+        Short direct restatement of the specific fact(s) from Stack-Mapping's
+        context that justify why this scenario is realistic for this decision.
     """
 
     name: str
@@ -68,6 +74,7 @@ class Scenario:
     implementation_steps: list[str] = field(default_factory=list)
     key_risks: list[str] = field(default_factory=list)
     layers_addressed: list[str] = field(default_factory=list)
+    grounded_in: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -100,7 +107,12 @@ def run(options: list[Option], stack_scope: StackScope) -> list[Scenario]:
     try:
         response = complete(prompt)
         return _parse_response(response, options)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in scenario_refinement_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -112,6 +124,7 @@ def _build_prompt(options: list[Option], stack_scope: StackScope) -> str:
     """Build the LLM scenario-refinement prompt."""
     options_str = "\n\n".join(
         f"  OPTION {i + 1}: {opt.name}\n"
+        f"  Grounded fact: {opt.grounded_in}\n"
         f"  Description: {opt.description}\n"
         f"  Rationale: {opt.rationale}"
         for i, opt in enumerate(options[:_MAX_OPTIONS_PER_CALL])
@@ -156,6 +169,7 @@ layers it addresses. Be specific to this entity and this decision — not generi
 Respond in exactly this repeating block format — one block per option, separated by ---:
 
 SCENARIO: <exact option name>
+GROUNDED_IN: <short direct restatement of the specific fact(s) from the STACK SCOPE or FEASIBLE OPTIONS above that justify why this scenario is realistic. MUST closely echo the actual wording and terms of the source stack layers above.>
 DESCRIPTION: <2-3 sentence detailed description of what pursuing this scenario entails>
 STEPS:
 - <implementation step 1>
@@ -176,6 +190,7 @@ def _parse_response(response: str, options: list[Option]) -> list[Scenario]:
     Expected block format::
 
         SCENARIO: <name>
+        GROUNDED_IN: <text>
         DESCRIPTION: <text>
         STEPS:
         - step 1
@@ -188,6 +203,7 @@ def _parse_response(response: str, options: list[Option]) -> list[Scenario]:
     Blocks missing the SCENARIO field are skipped.
     Returns ``[]`` if no valid blocks are found.
     """
+    option_map = {opt.name: opt for opt in options}
     raw_blocks = re.split(r"\n---+\s*", response.strip())
     scenarios: list[Scenario] = []
 
@@ -199,6 +215,10 @@ def _parse_response(response: str, options: list[Option]) -> list[Scenario]:
         name = _extract_field(block, "SCENARIO")
         if not name:
             continue
+
+        grounded_in = _extract_field(block, "GROUNDED_IN")
+        if not grounded_in and name in option_map:
+            grounded_in = option_map[name].grounded_in
 
         description = _extract_field(block, "DESCRIPTION")
         steps = _extract_bullet_list(block, "STEPS")
@@ -218,6 +238,7 @@ def _parse_response(response: str, options: list[Option]) -> list[Scenario]:
                 implementation_steps=steps,
                 key_risks=risks,
                 layers_addressed=layers_addressed,
+                grounded_in=grounded_in,
             )
         )
 

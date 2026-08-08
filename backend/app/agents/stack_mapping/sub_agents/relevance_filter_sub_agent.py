@@ -26,11 +26,14 @@ the system blind to real dependencies.
 
 from __future__ import annotations
 
+import logging
 import re
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +67,12 @@ def run(layers: list[StackLayer], context: IngestionContext) -> list[StackLayer]
         response = complete(prompt)
         keep_names = _parse_keep_names(response)
         return _filter_layers(layers, keep_names)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in relevance_filter_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         # Safe fallback: return all candidates unchanged.
         return list(layers)
 

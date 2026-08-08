@@ -239,7 +239,7 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
     sample_scope = StackScope(
         entity="Test Entity",
         capability="Test Cap",
-        layers=[],
+        layers=[StackLayer(name="Test Layer", rationale="Standard cloud infrastructure report for edge computing.", evidence="Standard cloud infrastructure report for edge computing.")],
         links=[],
     )
 
@@ -288,3 +288,46 @@ def test_pipeline_handles_agent_exception_gracefully():
         assert res.ingestion_context is None
         assert res.verification_passed is False
         assert res.verification_failed_stage == "ingestion"
+
+
+def test_pipeline_reports_incomplete_run_on_upstream_api_failure():
+    """Simulate an upstream API failure (e.g. rate limit error) mid-pipeline and verify incomplete run reporting."""
+    sample_context = IngestionContext(
+        entity="Test Entity",
+        capability="Test Cap",
+        options=["opt1"],
+        context_summary="Test context summary for edge computing.",
+        key_facts=["Test context summary for edge computing."],
+        sources=["https://example.com"],
+    )
+
+    sample_scope = StackScope(
+        entity="Test Entity",
+        capability="Test Cap",
+        layers=[StackLayer(name="Compute", rationale="Test context summary for edge computing.", evidence="Test context summary for edge computing.")],
+    )
+
+    # Scenario-generation returns empty scenario set due to upstream rate-limit failure in sub-agent
+    empty_scenarios = ScenarioSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        scenarios=[],
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=sample_context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=sample_scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=empty_scenarios):
+
+        res = run_pipeline(
+            entity="Test Entity",
+            capability="Test Cap",
+            options=["opt1"],
+        )
+
+        assert res.verification_passed is False
+        assert res.verification_failed_stage == "scenario_generation"
+        assert any(
+            v.passed is False and "stage did not execute" in v.reason and v.agent_stage == "scenario_generation"
+            for v in res.verification_results
+        )
+

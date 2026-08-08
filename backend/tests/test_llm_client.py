@@ -22,7 +22,7 @@ from app.llm.client import complete
 # ---------------------------------------------------------------------------
 
 def test_complete_deepseek_returns_text():
-    """complete() with default provider calls DeepSeek and returns reply text."""
+    """complete() with default provider calls LLM client and returns reply text."""
     mock_text = "This is a mocked DeepSeek response."
 
     mock_message = MagicMock()
@@ -39,19 +39,21 @@ def test_complete_deepseek_returns_text():
 
     with patch("app.llm.client.openai.OpenAI", return_value=mock_client_instance):
         with patch("app.llm.client.settings") as mock_settings:
-            mock_settings.deepseek_api_key = "test-deepseek-key"
-            mock_settings.deepseek_base_url = "https://api.deepseek.com/v1"
+            mock_settings.llm_api_key = "test-deepseek-key"
+            mock_settings.llm_base_url = "https://api.deepseek.com/v1"
             mock_settings.default_model = "deepseek-chat"
-            result = complete("Hello from test")  # default provider = "deepseek"
+            mock_settings.llm_provider = "deepseek"
+            result = complete("Hello from test")  # default provider = "default"
 
     assert result == mock_text
 
 
 def test_complete_deepseek_raises_when_key_missing():
-    """complete() raises RuntimeError when DEEPSEEK_API_KEY is not set."""
+    """complete() raises RuntimeError when LLM API key is not set."""
     with patch("app.llm.client.settings") as mock_settings:
-        mock_settings.deepseek_api_key = ""
-        with pytest.raises(RuntimeError, match="DEEPSEEK_API_KEY"):
+        mock_settings.llm_api_key = ""
+        mock_settings.llm_provider = "deepseek"
+        with pytest.raises(RuntimeError, match="is not set"):
             complete("Hello")
 
 

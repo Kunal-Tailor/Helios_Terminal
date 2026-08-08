@@ -19,12 +19,15 @@ ExplanationTrail and AuditStep are defined here as canonical output types.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis
 from app.agents.orchestrator.sub_agents.verdict_synthesis_sub_agent import VerdictSynthesis
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum diagnoses to process in a single prompt call
 _MAX_DIAGNOSES_PER_CALL = 5
@@ -46,11 +49,15 @@ class AuditStep:
         The key finding, decision claim, or constraint identified.
     evidence:
         The underlying fact, source citation, or logical justification supporting the claim.
+    grounded_in:
+        Short direct restatement of the specific dependency diagnosis fact from Dependency-Diagnosis's context
+        that this step is based on.
     """
 
     stage: str
     claim: str
     evidence: str = ""
+    grounded_in: str = ""
 
 
 @dataclass
@@ -109,7 +116,12 @@ def run(
         trail = _parse_response(response)
         trail.sources = list(dict.fromkeys(sources or []))
         return trail
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in explanation_trail_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return ExplanationTrail(sources=sources or [])
 
 
@@ -172,6 +184,7 @@ TRAIL SUMMARY:
 
 ---
 AUDIT STEP: <stage name, e.g. Ingestion, Stack-Mapping, Diagnosis, Verdict>
+GROUNDED_IN: <short direct restatement of the specific dependency diagnosis fact from the DIAGNOSED SCENARIO PATHS above that this step is based on. MUST closely echo the actual wording and terms of the source diagnosis above.>
 CLAIM: <1 sentence stating the key claim or finding>
 EVIDENCE: <1 sentence citing the source-grounded evidence or justification>
 ---
@@ -199,10 +212,18 @@ def _parse_response(response: str) -> ExplanationTrail:
         if not stage:
             continue
 
+        grounded_in = _extract_field(block, "GROUNDED_IN")
         claim = _extract_field(block, "CLAIM")
         evidence = _extract_field(block, "EVIDENCE")
 
-        steps.append(AuditStep(stage=stage, claim=claim, evidence=evidence))
+        steps.append(
+            AuditStep(
+                stage=stage,
+                claim=claim,
+                evidence=evidence,
+                grounded_in=grounded_in,
+            )
+        )
 
     return ExplanationTrail(
         summary=summary,

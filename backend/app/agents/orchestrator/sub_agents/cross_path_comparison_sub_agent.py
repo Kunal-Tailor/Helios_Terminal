@@ -20,11 +20,14 @@ CrossPathComparison and PathComparison are defined here as canonical output type
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum diagnoses to compare in a single prompt call
 _MAX_DIAGNOSES_PER_CALL = 5
@@ -101,7 +104,12 @@ def run(diagnoses: list[DependencyDiagnosis]) -> CrossPathComparison:
     try:
         response = complete(prompt)
         return _parse_response(response, diagnoses)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in cross_path_comparison_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return CrossPathComparison()
 
 

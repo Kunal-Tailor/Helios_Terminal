@@ -62,9 +62,37 @@ def test_verify_sets_verified_true_on_pass():
     assert sc.verified is True
 
 
-# ---------------------------------------------------------------------------
-# Known-bad claim/source pair — claim keywords are NOT in source
-# ---------------------------------------------------------------------------
+def test_verify_passes_hyphenated_compound_word():
+    """verify() passes when claim or source uses hyphenated compound words vs space-separated."""
+    sc = _claim(
+        claim_text="Indian Army tested an AI-powered autonomous drone interceptor.",
+        source_text="India's AI powered autonomous drone interceptor cleared Army trials.",
+    )
+    result = verify(sc)
+    assert result.passed is True
+    assert result.confidence >= 0.6
+
+
+def test_verify_passes_comma_formatted_number():
+    """verify() passes when claim uses unformatted number and source has comma formatting."""
+    sc = _claim(
+        claim_text="The army deployed 30000 drones across the border.",
+        source_text="The army deployed 30,000 drones across the border.",
+    )
+    result = verify(sc)
+    assert result.passed is True
+    assert result.confidence >= 0.6
+
+
+def test_verify_passes_lakh_crore_equivalence():
+    """verify() passes when numbers are expressed in lakh or crore equivalence."""
+    sc = _claim(
+        claim_text="The roadmap targets 100,000 trained personnel and 137000000 rupees.",
+        source_text="The roadmap targets training one lakh personnel and 137 crore emergency procurement.",
+    )
+    result = verify(sc)
+    assert result.passed is True
+    assert result.confidence >= 0.6
 
 def test_verify_fails_known_bad_pair():
     """A claim whose key terms are absent from the source should fail."""

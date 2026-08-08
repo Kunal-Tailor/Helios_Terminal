@@ -6,11 +6,13 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis, DiagnosisSet
+from app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent import FailureMode
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
 from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison, PathComparison
 from app.agents.orchestrator.sub_agents.explanation_trail_sub_agent import AuditStep, ExplanationTrail
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection, OutcomeSet
+from app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent import Trajectory
 from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
 from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
@@ -124,13 +126,33 @@ def test_post_decisions_endpoint_full_pipeline_flow():
     sample_outcomes = OutcomeSet(
         entity="ACME Corp",
         capability="Speech Recognition",
-        outcomes=[],
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Build",
+                trajectory=Trajectory(
+                    scenario_name="Build",
+                    summary="Speech Recognition requirements",
+                ),
+            )
+        ],
     )
 
     sample_diagnoses = DiagnosisSet(
         entity="ACME Corp",
         capability="Speech Recognition",
-        diagnoses=[],
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Build",
+                failure_modes=[
+                    FailureMode(
+                        scenario_name="Build",
+                        dependency_name="Vendor",
+                        failure_mode_title="Title",
+                        what_breaks="Speech Recognition requirements",
+                    )
+                ],
+            )
+        ],
     )
 
     sample_verdict = OrchestratorVerdict(

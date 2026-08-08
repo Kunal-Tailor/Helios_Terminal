@@ -20,12 +20,15 @@ FailureMode is defined here as the canonical output type of this step.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent import LockInDependency
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum dependencies per LLM prompt call
 _MAX_DEPENDENCIES_PER_CALL = 5
@@ -61,6 +64,7 @@ class FailureMode:
     what_breaks: str = ""
     trigger_condition: str = ""
     time_horizon: str = ""
+    grounded_in: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +99,12 @@ def run(
     try:
         response = complete(prompt)
         return _parse_response(response, dependencies)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in failure_mode_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 
@@ -136,6 +145,7 @@ Respond in exactly this repeating block format — one block per failure mode, s
 FAILURE_MODE: <short title of what breaks>
 SCENARIO: <exact scenario name>
 DEPENDENCY: <exact dependency name>
+GROUNDED_IN: <short direct restatement of the specific outcome/trajectory fact from the DEPENDENCIES or outcomes above that this diagnosis applies to. MUST closely echo the actual wording and terms of the source trajectory above.>
 WHAT_BREAKS: <1-2 sentences explaining what breaks later if unmanaged>
 TRIGGER: <1 sentence explaining the trigger condition>
 HORIZON: <estimated time horizon, e.g. 6-12 months, 18-24 months>
@@ -148,6 +158,7 @@ def _parse_response(
     dependencies: list[LockInDependency],
 ) -> list[FailureMode]:
     """Parse the structured LLM response into a list of :class:`FailureMode` objects."""
+    dep_map = {dep.dependency_name.lower(): dep for dep in dependencies}
     raw_blocks = re.split(r"\n---+\s*", response.strip())
     failure_modes: list[FailureMode] = []
 
@@ -162,6 +173,11 @@ def _parse_response(
         if not title or not scenario_name or not dep_name:
             continue
 
+        grounded_in = _extract_field(block, "GROUNDED_IN")
+        if not grounded_in and dep_name.lower() in dep_map:
+            dep_obj = dep_map[dep_name.lower()]
+            grounded_in = dep_obj.grounded_in or dep_obj.description or dep_obj.dependency_name
+
         what_breaks = _extract_field(block, "WHAT_BREAKS")
         trigger = _extract_field(block, "TRIGGER")
         horizon = _extract_field(block, "HORIZON")
@@ -174,6 +190,7 @@ def _parse_response(
                 what_breaks=what_breaks,
                 trigger_condition=trigger,
                 time_horizon=horizon,
+                grounded_in=grounded_in,
             )
         )
 

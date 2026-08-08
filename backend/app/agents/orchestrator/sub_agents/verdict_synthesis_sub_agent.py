@@ -20,12 +20,15 @@ VerdictSynthesis is defined here as a canonical output type.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis
 from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +95,12 @@ def run(
     try:
         response = complete(prompt)
         return _parse_response(response)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in verdict_synthesis_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return VerdictSynthesis()
 
 

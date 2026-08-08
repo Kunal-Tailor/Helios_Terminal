@@ -24,12 +24,15 @@ The Option type is imported from option_enumeration_sub_agent (5.9).
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent import Option
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -92,7 +95,12 @@ def run(options: list[Option], stack_scope: StackScope) -> list[Option]:
         feasible = [r.option for r in results if r.is_feasible]
         # If all options were deemed infeasible, still return them (better to keep options than lose all).
         return feasible if feasible else options
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in feasibility_check_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         # Graceful degradation: return all options if LLM fails.
         return options
 

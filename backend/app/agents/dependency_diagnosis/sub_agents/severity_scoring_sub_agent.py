@@ -20,12 +20,15 @@ DependencySeverityScore is defined here as the canonical output type of this ste
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent import FailureMode
 from app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent import LockInDependency
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum dependencies per LLM prompt call
 _MAX_DEPENDENCIES_PER_CALL = 5
@@ -95,7 +98,12 @@ def run(
     try:
         response = complete(prompt)
         return _parse_response(response, dependencies)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in severity_scoring_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 

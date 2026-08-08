@@ -20,12 +20,15 @@ RiskFactor is defined here as the canonical output type of this step.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass
 
 from app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent import Trajectory
 from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
 from app.llm.client import complete
+
+logger = logging.getLogger(__name__)
 
 # Maximum trajectories per LLM prompt call
 _MAX_TRAJECTORIES_PER_CALL = 5
@@ -95,7 +98,12 @@ def run(
     try:
         response = complete(prompt)
         return _parse_response(response, trajectories)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in risk_factor_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         return []
 
 

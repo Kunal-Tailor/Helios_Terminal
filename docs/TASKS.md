@@ -16,42 +16,44 @@ Example: `Update - 1.1 - initial repo scaffolding`
 
 ## Phase 1 — Repo Scaffolding (no logic yet)
 
-- [ ] 1.1 — Initialise git repo, add `.gitignore` (Python + Node)
+## Phase 1 — Repo Scaffolding (no logic yet)
+
+- [x] 1.1 — Initialise git repo, add `.gitignore` (Python + Node)
   Commit: `Update - 1.1 - initial repo scaffolding`
-- [ ] 1.2 — Add `README.md` with project name + one-line description only
+- [x] 1.2 — Add `README.md` with project name + one-line description only
   Commit: `Update - 1.2 - add README`
-- [ ] 1.3 — Create empty folder structure per `FOLDER_STRUCTURE.md` (folders + placeholder `.gitkeep` or empty `__init__.py` only — no code)
+- [x] 1.3 — Create empty folder structure per `FOLDER_STRUCTURE.md` (folders + placeholder `.gitkeep` or empty `__init__.py` only — no code)
   Commit: `Update - 1.3 - create folder structure`
-- [ ] 1.4 — Copy `docs/` (the seven files already created) into the repo
+- [x] 1.4 — Copy `docs/` (the seven files already created) into the repo
   Commit: `Update - 1.4 - add project docs`
 
 ## Phase 2 — Backend Skeleton (no agents yet)
 
-- [ ] 2.1 — `backend/requirements.txt` or `pyproject.toml` with FastAPI, uvicorn only
+- [x] 2.1 — `backend/requirements.txt` or `pyproject.toml` with FastAPI, uvicorn only
   Commit: `Update - 2.1 - backend dependencies`
-- [ ] 2.2 — `backend/app/main.py` — FastAPI app that starts and returns a health check
+- [x] 2.2 — `backend/app/main.py` — FastAPI app that starts and returns a health check
   Commit: `Update - 2.2 - minimal FastAPI app`
-- [ ] 2.3 — `backend/app/api/routes/health.py` — `GET /health` returns `{"status": "ok"}`; confirm `uvicorn app.main:app` runs locally and `/health` responds
+- [x] 2.3 — `backend/app/api/routes/health.py` — `GET /health` returns `{"status": "ok"}`; confirm `uvicorn app.main:app` runs locally and `/health` responds
   Commit: `Update - 2.3 - health check endpoint`
-- [ ] 2.4 — `backend/app/core/config.py` — environment/config loading (API keys via env vars, not hardcoded)
+- [x] 2.4 — `backend/app/core/config.py` — environment/config loading (API keys via env vars, not hardcoded)
   Commit: `Update - 2.4 - config loading via environment variables`
-- [ ] 2.5 — `backend/tests/test_api/test_health.py` — one test for the health endpoint
+- [x] 2.5 — `backend/tests/test_api/test_health.py` — one test for the health endpoint
   Commit: `Update - 2.5 - health check test`
 
 ## Phase 3 — LLM Client Wrapper (shared dependency for all agents)
 
-- [ ] 3.1 — `backend/app/llm/client.py` — thin wrapper around Claude/GPT API call (single function: prompt in, text out); unit test with a mocked API response (no live call in CI)
+- [x] 3.1 — `backend/app/llm/client.py` — thin wrapper around Claude/GPT API call (single function: prompt in, text out); unit test with a mocked API response (no live call in CI)
   Commit: `Update - 3.1 - LLM client wrapper`
-- [ ] 3.2 — `backend/app/retrieval/web_search.py` — thin wrapper for retrieval/web-search augmentation
+- [x] 3.2 — `backend/app/retrieval/web_search.py` — thin wrapper for retrieval/web-search augmentation
   Commit: `Update - 3.2 - web search retrieval wrapper`
-- [ ] 3.3 — Pin DeepSeek V4 Flash as the default model: set it in `backend/app/core/config.py` (env var default) and `.env.example`. No changes to the client wrapper's interface — this only sets which model it points to by default.
+- [x] 3.3 — Pin DeepSeek V4 Flash as the default model: set it in `backend/app/core/config.py` (env var default) and `.env.example`. No changes to the client wrapper's interface — this only sets which model it points to by default.
   Commit: `Update - 3.3 - pin DeepSeek V4 Flash as default LLM`
 
 ## Phase 4 — Verification Layer (build before agents depend on it)
 
-- [ ] 4.1 — `backend/app/verification/source_store.py` — data structure to hold a claim + its cited source
+- [x] 4.1 — `backend/app/verification/source_store.py` — data structure to hold a claim + its cited source
   Commit: `Update - 4.1 - source store structure`
-- [ ] 4.2 — `backend/app/verification/verifier.py` — function that checks a claim against a source (start simple: presence/consistency check, not full semantic verification); unit tests for verifier with a known-good and known-bad claim/source pair
+- [x] 4.2 — `backend/app/verification/verifier.py` — function that checks a claim against a source (start simple: presence/consistency check, not full semantic verification); unit tests for verifier with a known-good and known-bad claim/source pair
   Commit: `Update - 4.2 - verification layer (claim-source checking)`
 
 ## Phase 5 — Agents, One Sub-Agent at a Time
@@ -60,85 +62,87 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 ### 5A — Ingestion Agent
 
-- [ ] 5.1 — `agents/ingestion/sub_agents/web_scraping_sub_agent.py` — pulls public info on entity/capability via web search; unit test (mocked search)
+- [x] 5.1 — `agents/ingestion/sub_agents/web_scraping_sub_agent.py` — pulls public info on entity/capability via web search; unit test (mocked search)
   Commit: `Update - 5.1 - ingestion sub-agent: web scraping`
-- [ ] 5.2 — `agents/ingestion/sub_agents/structured_source_sub_agent.py` — pulls from known structured sources (HF Hub, BIS Entity List, TPDi, market-share reports); unit test
+- [x] 5.2 — `agents/ingestion/sub_agents/structured_source_sub_agent.py` — pulls from known structured sources (HF Hub, BIS Entity List, TPDi, market-share reports); unit test
   Commit: `Update - 5.2 - ingestion sub-agent: structured source`
-- [ ] 5.3 — (optional) `agents/ingestion/sub_agents/context_synthesis_sub_agent.py` — merges 5.1 + 5.2 outputs into structured context; unit test
+- [x] 5.3 — (optional) `agents/ingestion/sub_agents/context_synthesis_sub_agent.py` — merges 5.1 + 5.2 outputs into structured context; unit test
   Commit: `Update - 5.3 - ingestion sub-agent: context synthesis`
-- [ ] 5.4 — `agents/ingestion/ingestion_agent.py` — parent: calls sub-agents above (parallel where independent), merges/returns structured context; unit + integration test
+- [x] 5.4 — `agents/ingestion/ingestion_agent.py` — parent: calls sub-agents above (parallel where independent), merges/returns structured context; unit + integration test
   Commit: `Update - 5.4 - ingestion agent (parent)`
 
 ### 5B — Stack-Mapping Agent
 
-- [ ] 5.5 — `agents/stack_mapping/sub_agents/layer_identification_sub_agent.py` — proposes candidate AI-stack layers from context; unit test
+- [x] 5.5 — `agents/stack_mapping/sub_agents/layer_identification_sub_agent.py` — proposes candidate AI-stack layers from context; unit test
   Commit: `Update - 5.5 - stack-mapping sub-agent: layer identification`
-- [ ] 5.6 — `agents/stack_mapping/sub_agents/relevance_filter_sub_agent.py` — narrows candidates to layers this decision touches; unit test
+- [x] 5.6 — `agents/stack_mapping/sub_agents/relevance_filter_sub_agent.py` — narrows candidates to layers this decision touches; unit test
   Commit: `Update - 5.6 - stack-mapping sub-agent: relevance filter`
-- [ ] 5.7 — (optional) `agents/stack_mapping/sub_agents/dependency_linkage_sub_agent.py` — maps how surviving layers interconnect; unit test
+- [x] 5.7 — (optional) `agents/stack_mapping/sub_agents/dependency_linkage_sub_agent.py` — maps how surviving layers interconnect; unit test
   Commit: `Update - 5.7 - stack-mapping sub-agent: dependency linkage`
-- [ ] 5.8 — `agents/stack_mapping/stack_mapping_agent.py` — parent: orchestrates 5.5-5.7, returns stack scope; unit + integration test
+- [x] 5.8 — `agents/stack_mapping/stack_mapping_agent.py` — parent: orchestrates 5.5-5.7, returns stack scope; unit + integration test
   Commit: `Update - 5.8 - stack-mapping agent (parent)`
 
 ### 5C — Scenario-Generation Agent
 
-- [ ] 5.9 — `agents/scenario_generation/sub_agents/option_enumeration_sub_agent.py` — generates raw candidate option set; unit test
+- [x] 5.9 — `agents/scenario_generation/sub_agents/option_enumeration_sub_agent.py` — generates raw candidate option set; unit test
   Commit: `Update - 5.9 - scenario-generation sub-agent: option enumeration`
-- [ ] 5.10 — `agents/scenario_generation/sub_agents/feasibility_check_sub_agent.py` — filters out unrealistic options (depends on 5.9's output); unit test
+- [x] 5.10 — `agents/scenario_generation/sub_agents/feasibility_check_sub_agent.py` — filters out unrealistic options (depends on 5.9's output); unit test
   Commit: `Update - 5.10 - scenario-generation sub-agent: feasibility check`
-- [ ] 5.11 — (optional) `agents/scenario_generation/sub_agents/scenario_refinement_sub_agent.py` — sharpens surviving options into full scenarios; unit test
+- [x] 5.11 — (optional) `agents/scenario_generation/sub_agents/scenario_refinement_sub_agent.py` — sharpens surviving options into full scenarios; unit test
   Commit: `Update - 5.11 - scenario-generation sub-agent: scenario refinement`
-- [ ] 5.12 — `agents/scenario_generation/scenario_generation_agent.py` — parent: orchestrates 5.9-5.11, returns option set; unit + integration test
+- [x] 5.12 — `agents/scenario_generation/scenario_generation_agent.py` — parent: orchestrates 5.9-5.11, returns option set; unit + integration test
   Commit: `Update - 5.12 - scenario-generation agent (parent)`
 
 ### 5D — Outcome-Prediction Agent
 
-- [ ] 5.13 — `agents/outcome_prediction/sub_agents/trajectory_modeling_sub_agent.py` — projects forward path for each scenario; unit test
+- [x] 5.13 — `agents/outcome_prediction/sub_agents/trajectory_modeling_sub_agent.py` — projects forward path for each scenario; unit test
   Commit: `Update - 5.13 - outcome-prediction sub-agent: trajectory modeling`
-- [ ] 5.14 — `agents/outcome_prediction/sub_agents/risk_factor_sub_agent.py` — identifies events/conditions that could alter the trajectory; unit test
+- [x] 5.14 — `agents/outcome_prediction/sub_agents/risk_factor_sub_agent.py` — identifies events/conditions that could alter the trajectory; unit test
   Commit: `Update - 5.14 - outcome-prediction sub-agent: risk factor`
-- [ ] 5.15 — (optional) `agents/outcome_prediction/sub_agents/timeline_projection_sub_agent.py` — attaches time horizons to outcomes; unit test
+- [x] 5.15 — (optional) `agents/outcome_prediction/sub_agents/timeline_projection_sub_agent.py` — attaches time horizons to outcomes; unit test
   Commit: `Update - 5.15 - outcome-prediction sub-agent: timeline projection`
-- [ ] 5.16 — `agents/outcome_prediction/outcome_prediction_agent.py` — parent: orchestrates 5.13-5.15, returns projected outcomes; unit + integration test
+- [x] 5.16 — `agents/outcome_prediction/outcome_prediction_agent.py` — parent: orchestrates 5.13-5.15, returns projected outcomes; unit + integration test
   Commit: `Update - 5.16 - outcome-prediction agent (parent)`
 
 ### 5E — Dependency-Diagnosis Agent
 
-- [ ] 5.17 — `agents/dependency_diagnosis/sub_agents/lock_in_identification_sub_agent.py` — names the specific dependency per outcome; unit test
+- [x] 5.17 — `agents/dependency_diagnosis/sub_agents/lock_in_identification_sub_agent.py` — names the specific dependency per outcome; unit test
   Commit: `Update - 5.17 - dependency-diagnosis sub-agent: lock-in identification`
-- [ ] 5.18 — `agents/dependency_diagnosis/sub_agents/failure_mode_sub_agent.py` — explains what breaks later if unmanaged; unit test
+- [x] 5.18 — `agents/dependency_diagnosis/sub_agents/failure_mode_sub_agent.py` — explains what breaks later if unmanaged; unit test
   Commit: `Update - 5.18 - dependency-diagnosis sub-agent: failure mode`
-- [ ] 5.19 — (optional) `agents/dependency_diagnosis/sub_agents/severity_scoring_sub_agent.py` — scores severity/urgency per dependency; unit test
+- [x] 5.19 — (optional) `agents/dependency_diagnosis/sub_agents/severity_scoring_sub_agent.py` — scores severity/urgency per dependency; unit test
   Commit: `Update - 5.19 - dependency-diagnosis sub-agent: severity scoring`
-- [ ] 5.20 — `agents/dependency_diagnosis/dependency_diagnosis_agent.py` — parent: orchestrates 5.17-5.19, returns diagnoses; unit + integration test
+- [x] 5.20 — `agents/dependency_diagnosis/dependency_diagnosis_agent.py` — parent: orchestrates 5.17-5.19, returns diagnoses; unit + integration test
   Commit: `Update - 5.20 - dependency-diagnosis agent (parent)`
 
 ### 5F — Orchestrator Agent
 
-- [ ] 5.21 — `agents/orchestrator/sub_agents/cross_path_comparison_sub_agent.py` — compares diagnoses across all paths; unit test
+- [x] 5.21 — `agents/orchestrator/sub_agents/cross_path_comparison_sub_agent.py` — compares diagnoses across all paths; unit test
   Commit: `Update - 5.21 - orchestrator sub-agent: cross-path comparison`
-- [ ] 5.22 — `agents/orchestrator/sub_agents/verdict_synthesis_sub_agent.py` — produces final comparative verdict text; unit test
+- [x] 5.22 — `agents/orchestrator/sub_agents/verdict_synthesis_sub_agent.py` — produces final comparative verdict text; unit test
   Commit: `Update - 5.22 - orchestrator sub-agent: verdict synthesis`
-- [ ] 5.23 — (optional) `agents/orchestrator/sub_agents/explanation_trail_sub_agent.py` — assembles source-grounded reasoning trail; unit test
+- [x] 5.23 — (optional) `agents/orchestrator/sub_agents/explanation_trail_sub_agent.py` — assembles source-grounded reasoning trail; unit test
   Commit: `Update - 5.23 - orchestrator sub-agent: explanation trail`
-- [ ] 5.24 — `agents/orchestrator/orchestrator_agent.py` — parent: orchestrates 5.21-5.23, returns comparative verdict; unit + integration test
+- [x] 5.24 — `agents/orchestrator/orchestrator_agent.py` — parent: orchestrates 5.21-5.23, returns comparative verdict; unit + integration test
   Commit: `Update - 5.24 - orchestrator agent (parent)`
 
 ## Phase 6 — Pipeline Wiring
 
-- [ ] 6.1 — `pipeline/graph.py` — wire agents together in sequence WITHOUT verification gating first (get the happy path working end-to-end); integration test on one sample decision brief, mocked LLM responses
+- [x] 6.1 — `pipeline/graph.py` — wire agents together in sequence WITHOUT verification gating first (get the happy path working end-to-end); integration test on one sample decision brief, mocked LLM responses
   Commit: `Update - 6.1 - wire agents into sequential pipeline (no gating yet)`
-- [ ] 6.2 — Add verification gate between each agent handoff (reuse Phase 4 verifier); update integration test to confirm a bad/unverified claim halts or flags the pipeline
+- [x] 6.2 — Add verification gate between each agent handoff (reuse Phase 4 verifier); update integration test to confirm a bad/unverified claim halts or flags the pipeline
   Commit: `Update - 6.2 - add stage-gated verification between agents`
 
-## Phase 7 — API Layer (expose the pipeline)
+## Phase 7 — API Layer & Pipeline Verification Hardening (expose the pipeline)
 
-- [ ] 7.1 — `api/schemas/` — pydantic models for decision brief request + verdict response
+- [x] 7.1 — `api/schemas/` — pydantic models for decision brief request + verdict response
   Commit: `Update - 7.1 - request/response schemas`
-- [ ] 7.2 — `api/routes/decisions.py` — `POST /decisions` accepts a brief, runs pipeline synchronously, returns verdict; integration test hitting the endpoint end-to-end (mocked LLM)
+- [x] 7.2 — `api/routes/decisions.py` — `POST /decisions` accepts a brief, runs pipeline synchronously, returns verdict; integration test hitting the endpoint end-to-end (mocked LLM)
   Commit: `Update - 7.2 - decisions endpoint wired to pipeline`
-- [ ] 7.3 — (Optional, only if needed) add async/background job handling if pipeline runtime is too long for a synchronous request
-  Commit: `Update - 7.3 - async decision processing` (only if this task is needed)
+- [x] 7.3 — (Optional, only if needed) add async/background job handling if pipeline runtime is too long for a synchronous request
+  Commit: `Update - 7.3 - async decision processing`
+- [x] 7.4 — Verification hardening: chained grounded vs. inference claim registration across all 6 stages, verifier matching normalizations (hyphens, commas, Indian number terms), and incomplete run reporting; full backend end-to-end verification
+  Commit: `Update - 7.4 - backend verification and chained pipeline hardening`
 
 **Checkpoint:** Backend is functionally complete and testable via curl/Postman before any frontend work starts.
 

@@ -84,6 +84,99 @@ class VerificationResult:
 
 
 # ---------------------------------------------------------------------------
+# Normalization & Equivalence Helpers
+# ---------------------------------------------------------------------------
+
+_NUMBER_WORDS: dict[str, int] = {
+    "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+    "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+    "a": 1, "an": 1,
+}
+
+_INDIAN_UNITS: dict[str, int] = {
+    "lakh": 100_000,
+    "lakhs": 100_000,
+    "crore": 10_000_000,
+    "crores": 10_000_000,
+}
+
+
+def _expand_indian_numbers(text: str) -> str:
+    """Expand Indian numbering terms ('lakh', 'crore') into numeric digit equivalents.
+
+    For example:
+        - 'one lakh' -> 'one lakh 100000'
+        - '30,000' -> '30000'
+        - '137 crore' -> '137 crore 137000000'
+        - '7.99 crore' -> '7.99 crore 7990000'
+    """
+    # Remove commas between digits (e.g. 30,000 -> 30000, 1,00,000 -> 100000)
+    text = re.sub(r'(?<=\d),(?=\d)', '', text)
+
+    def _repl_num_unit(match: re.Match) -> str:
+        num_str, unit = match.group(1), match.group(2).lower()
+        mult = _INDIAN_UNITS.get(unit, 1)
+        try:
+            val = float(num_str)
+            calculated = int(val * mult)
+            return f"{match.group(0)} {calculated}"
+        except ValueError:
+            return match.group(0)
+
+    # Convert digits + unit: e.g. "1 lakh", "137 crore", "7.99 crore"
+    text = re.sub(r'\b(\d+(?:\.\d+)?)\s+(lakhs?|crores?)\b', _repl_num_unit, text, flags=re.IGNORECASE)
+
+    def _repl_word_unit(match: re.Match) -> str:
+        word, unit = match.group(1).lower(), match.group(2).lower()
+        num_val = _NUMBER_WORDS.get(word)
+        mult = _INDIAN_UNITS.get(unit)
+        if num_val and mult:
+            calculated = num_val * mult
+            return f"{match.group(0)} {calculated}"
+        return match.group(0)
+
+    # Convert number word + unit: e.g. "one lakh", "two crores"
+    text = re.sub(
+        r'\b(one|two|three|four|five|six|seven|eight|nine|ten|a|an)\s+(lakhs?|crores?)\b',
+        _repl_word_unit,
+        text,
+        flags=re.IGNORECASE,
+    )
+
+    return text
+
+
+def _normalize_text(text: str) -> str:
+    """Normalize text by expanding Indian numbers, lowercasing, and expanding hyphens.
+
+    Hyphenated words like 'AI-powered' expand to 'ai powered aipowered' so that
+    matching succeeds whether source contains 'AI-powered', 'AI powered', or 'AIpowered'.
+    """
+    text = text.lower()
+    text = _expand_indian_numbers(text)
+
+    def _expand_hyphens(match: re.Match) -> str:
+        w1, w2 = match.group(1), match.group(2)
+        return f"{w1} {w2} {w1}{w2}"
+
+    text = re.sub(r'\b([a-z0-9]+)-([a-z0-9]+)\b', _expand_hyphens, text)
+    return text
+
+
+def _simple_stem(token: str) -> str:
+    """Return a simple morphological stem for matching variations (e.g. trialed -> trial)."""
+    if len(token) > 5 and token.endswith("ing"):
+        return token[:-3]
+    if len(token) > 4 and token.endswith("ed"):
+        return token[:-2]
+    if len(token) > 4 and token.endswith("es"):
+        return token[:-2]
+    if len(token) > 3 and token.endswith("s") and not token.endswith("ss"):
+        return token[:-1]
+    return token
+
+
+# ---------------------------------------------------------------------------
 # Public functions
 # ---------------------------------------------------------------------------
 
@@ -116,8 +209,19 @@ def verify(claim: SourcedClaim) -> VerificationResult:
             agent_stage=claim.agent_stage,
         )
 
-    source_lower = claim.source_text.lower()
-    matched = sum(1 for kw in keywords if kw in source_lower)
+    normalized_source = _normalize_text(claim.source_text)
+    source_tokens = set(re.sub(r"[^\w\s]", "", normalized_source).split())
+    source_stems = {_simple_stem(t) for t in source_tokens}
+
+    def _matches_source(kw: str) -> bool:
+        if kw in normalized_source or kw in source_tokens:
+            return True
+        stem = _simple_stem(kw)
+        if stem in source_stems:
+            return True
+        return False
+
+    matched = sum(1 for kw in keywords if _matches_source(kw))
     confidence = matched / len(keywords)
     passed = confidence >= _KEYWORD_THRESHOLD
 
@@ -129,7 +233,7 @@ def verify(claim: SourcedClaim) -> VerificationResult:
         f"(threshold {_KEYWORD_THRESHOLD:.0%}, confidence {confidence:.0%})."
     )
     if not passed:
-        missing = [kw for kw in keywords if kw not in source_lower]
+        missing = [kw for kw in keywords if not _matches_source(kw)]
         reason += f" Missing keywords: {missing[:5]}"  # cap at 5 to keep logs readable
 
     return VerificationResult(
@@ -170,9 +274,9 @@ def verify_stage(store: SourceStore, agent_stage: str) -> list[VerificationResul
 def _extract_keywords(text: str) -> list[str]:
     """Return lowercase significant words from *text*, excluding stop words.
 
-    Strips punctuation, lowercases, splits on whitespace, and filters out
-    words in :data:`_STOP_WORDS` and single-character tokens.
+    Hyphenated compound words, commas in numbers, and Indian numbering terms
+    ('lakh', 'crore') are normalized.
     """
-    # Remove punctuation, lowercase, split
-    tokens = re.sub(r"[^\w\s]", "", text.lower()).split()
+    normalized = _normalize_text(text)
+    tokens = re.sub(r"[^\w\s]", "", normalized).split()
     return [t for t in tokens if t not in _STOP_WORDS and len(t) > 1]

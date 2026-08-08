@@ -26,11 +26,14 @@ authoritative domains/publications rather than open-ended web crawl).
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
 
 import httpx
 
 from app.retrieval.web_search import search as web_search
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -120,7 +123,8 @@ def _query_hf_hub(capability: str) -> list[StructuredSourceResult]:
         )
         response.raise_for_status()
         models = response.json()
-    except Exception:
+    except Exception as exc:
+        logger.error("HuggingFace Hub query failed in structured_source_sub_agent: %s", exc, exc_info=True)
         return []
 
     results = []
@@ -153,7 +157,8 @@ def _query_bis_entity_list(entity: str) -> list[StructuredSourceResult]:
     query = f"site:bis.doc.gov entity list {entity}"
     try:
         raw = web_search(query, max_results=3)
-    except Exception:
+    except Exception as exc:
+        logger.error("BIS Entity List query failed in structured_source_sub_agent: %s", exc, exc_info=True)
         return []
     return [
         StructuredSourceResult(
@@ -175,7 +180,8 @@ def _query_tpdi(entity: str, capability: str) -> list[StructuredSourceResult]:
     query = f"{entity} {capability} technology procurement dependency intelligence assessment"
     try:
         raw = web_search(query, max_results=3)
-    except Exception:
+    except Exception as exc:
+        logger.error("TPDi query failed in structured_source_sub_agent: %s", exc, exc_info=True)
         return []
     return [
         StructuredSourceResult(
@@ -194,7 +200,8 @@ def _query_market_share_reports(capability: str) -> list[StructuredSourceResult]
     query = f"{capability} AI cloud market share infrastructure report"
     try:
         raw = web_search(query, max_results=3)
-    except Exception:
+    except Exception as exc:
+        logger.error("Market share reports query failed in structured_source_sub_agent: %s", exc, exc_info=True)
         return []
     return [
         StructuredSourceResult(

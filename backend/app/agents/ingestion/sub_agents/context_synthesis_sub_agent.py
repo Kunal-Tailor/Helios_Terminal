@@ -22,11 +22,14 @@ the Ingestion stage; downstream agents (Stack-Mapping) import it from here.
 
 from __future__ import annotations
 
+import logging
 import re
 from dataclasses import dataclass, field
 
 from app.llm.client import complete
 from app.retrieval.web_search import SearchResult
+
+logger = logging.getLogger(__name__)
 
 # Import the structured-source result type for type annotations.
 from app.agents.ingestion.sub_agents.structured_source_sub_agent import (
@@ -57,6 +60,8 @@ class IngestionContext:
         Each item is a single, self-contained factual statement.
     sources:
         Deduplicated list of source URLs cited across all retrieved results.
+    raw_retrieved_content:
+        Concatenated text of all raw retrieved web and structured source snippets.
     """
 
     entity: str
@@ -65,6 +70,7 @@ class IngestionContext:
     context_summary: str = ""
     key_facts: list[str] = field(default_factory=list)
     sources: list[str] = field(default_factory=list)
+    raw_retrieved_content: str = ""
 
 
 # ---------------------------------------------------------------------------
@@ -105,12 +111,18 @@ def run(
         left empty and sources are still populated (graceful degradation).
     """
     sources = _collect_sources(web_results, structured_results)
+    raw_retrieved_content = _collect_raw_retrieved_content(web_results, structured_results)
     prompt = _build_prompt(entity, capability, options, web_results, structured_results)
 
     try:
         llm_response = complete(prompt)
         context_summary, key_facts = _parse_llm_response(llm_response)
-    except Exception:
+    except Exception as exc:
+        logger.error(
+            "LLM call failed in context_synthesis_sub_agent (run): %s",
+            exc,
+            exc_info=True,
+        )
         context_summary = ""
         key_facts = []
 
@@ -121,7 +133,23 @@ def run(
         context_summary=context_summary,
         key_facts=key_facts,
         sources=sources,
+        raw_retrieved_content=raw_retrieved_content,
     )
+
+
+def _collect_raw_retrieved_content(
+    web_results: list[SearchResult],
+    structured_results: list[StructuredSourceResult],
+) -> str:
+    """Return concatenated text of all raw retrieved web and structured source snippets."""
+    snippets: list[str] = []
+    for r in web_results:
+        if r.content:
+            snippets.append(r.content)
+    for r in structured_results:
+        if r.content:
+            snippets.append(r.content)
+    return "\n\n".join(snippets)
 
 
 # ---------------------------------------------------------------------------
