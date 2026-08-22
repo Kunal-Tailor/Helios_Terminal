@@ -169,7 +169,7 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
   Commit: `Update - 9.2 - pipeline status strip wired to backend`
 - [x] 9.3 — `components/verdict-panel/VerdictBanner.tsx` + `PathCard.tsx`, `pages/DecisionResult.tsx` — render the Orchestrator verdict banner and one card per path (outcome/dependency/failure-mode), per `06_COMPONENT_BREAKDOWN.md`'s states for each; plain layout, no design-token styling applied yet
   Commit: `Update - 9.3 - result view (verdict banner + path cards)`
-- [ ] 9.4 — Apply `05_DESIGN_SYSTEM.md` tokens and the density rule (dense chrome / roomy verdict content) to 9.1–9.3; this is the first real styling pass, deliberately kept separate from building the raw components above
+- [x] 9.4 — Apply `05_DESIGN_SYSTEM.md` tokens and the density rule (dense chrome / roomy verdict content) to 9.1–9.3; this is the first real styling pass, deliberately kept separate from building the raw components above
   Commit: `Update - 9.4 - design system pass on input and result flow`
 
 **Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.

@@ -4,9 +4,9 @@ export default {
   theme: {
     extend: {
       colors: {
-        'bg-base': 'var(--bg-base)',
-        'bg-surface': 'var(--bg-surface)',
-        'bg-surface-raised': 'var(--bg-surface-raised)',
+        base: 'var(--bg-base)',
+        surface: 'var(--bg-surface)',
+        'surface-raised': 'var(--bg-surface-raised)',
         hairline: 'var(--border-hairline)',
         primary: 'var(--text-primary)',
         secondary: 'var(--text-secondary)',

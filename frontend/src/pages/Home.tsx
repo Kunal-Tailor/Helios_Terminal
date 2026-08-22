@@ -36,8 +36,10 @@ function Home() {
     phase === null || phase === 'halted' || phase === 'unreachable' || phase === 'error'
 
   return (
-    <main>
-      <h1>Helios Terminal</h1>
+    <main className="mx-auto max-w-2xl space-y-6 px-8 py-10">
+      <h1 className="font-mono text-section-header leading-[1.3] text-primary">
+        Helios Terminal
+      </h1>
       {phase !== null && (
         <PipelineStatusStrip
           phase={phase}

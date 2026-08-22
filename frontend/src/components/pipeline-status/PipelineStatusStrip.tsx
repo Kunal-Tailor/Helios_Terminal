@@ -23,6 +23,20 @@ function stageMarkText(mark: StageMark): string {
   return 'not run'
 }
 
+const MARK_SYMBOL_CLASS: Record<StageMark, string> = {
+  complete: 'text-accent',
+  failed: 'text-risk-critical',
+  pending: 'text-tertiary',
+}
+
+const HEADER_TEXT: Record<StripPhase, string> = {
+  running: 'Running pipeline…',
+  complete: 'Pipeline complete',
+  halted: 'Stage failed verification',
+  unreachable: "Couldn't reach Helios",
+  error: 'Request failed',
+}
+
 function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStripProps) {
   let marks: StageMark[]
   if (phase === 'complete') {
@@ -45,35 +59,57 @@ function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStri
       : null
 
   return (
-    <section aria-live="polite">
-      <h2>
-        {phase === 'running' && 'Running pipeline…'}
-        {phase === 'complete' && 'Pipeline complete'}
-        {phase === 'halted' && 'Stage failed verification'}
-        {phase === 'unreachable' && "Couldn't reach Helios"}
-        {phase === 'error' && 'Request failed'}
+    <section
+      aria-live="polite"
+      className="space-y-3 rounded-sm border border-hairline bg-surface p-4 font-mono text-body-mono leading-[1.3]"
+    >
+      <h2
+        className={
+          phase === 'halted'
+            ? 'text-risk-critical'
+            : phase === 'complete'
+              ? 'text-accent'
+              : 'text-primary'
+        }
+      >
+        {HEADER_TEXT[phase]}
       </h2>
-      <ol>
+      <ol className="space-y-1">
         {STAGES.map((stage, index) => {
           const mark = marks[index]
           const symbol = mark === 'complete' ? '✓' : mark === 'failed' ? '✗' : '·'
+          const emphasized = mark === 'failed' || mark === 'complete'
           return (
-            <li key={stage.id} data-state={mark} title={`${stage.label}: ${stageMarkText(mark)}`}>
-              <span aria-hidden="true">{symbol}</span> {stage.label}
+            <li
+              key={stage.id}
+              data-state={mark}
+              title={`${stage.label}: ${stageMarkText(mark)}`}
+              className={emphasized ? 'text-primary' : 'text-secondary'}
+            >
+              <span aria-hidden="true" className={`mr-1.5 ${MARK_SYMBOL_CLASS[mark]}`}>
+                {symbol}
+              </span>
+              {stage.label}
             </li>
           )
         })}
       </ol>
-      {phase === 'running' && <p>All six stages run with verification gates between them.</p>}
+      {phase === 'running' && (
+        <p className="text-secondary">All six stages run with verification gates between them.</p>
+      )}
       {phase === 'halted' && (
         <>
-          <p>
+          <p className="text-primary">
             {failedLabel
               ? `The ${failedLabel} stage could not be verified against its sources.`
               : 'A stage could not be verified against its sources.'}
           </p>
           {onRetry && (
-            <button type="button" onClick={onRetry}>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+            >
               Try again
             </button>
           )}
@@ -81,9 +117,13 @@ function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStri
       )}
       {phase === 'unreachable' && (
         <>
-          <p>Check your connection and try again.</p>
+          <p className="text-primary">Check your connection and try again.</p>
           {onRetry && (
-            <button type="button" onClick={onRetry}>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+            >
               Try again
             </button>
           )}
@@ -91,9 +131,13 @@ function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStri
       )}
       {phase === 'error' && (
         <>
-          <p>Helios returned an unexpected response.</p>
+          <p className="text-primary">Helios returned an unexpected response.</p>
           {onRetry && (
-            <button type="button" onClick={onRetry}>
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+            >
               Try again
             </button>
           )}

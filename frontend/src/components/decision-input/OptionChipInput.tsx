@@ -37,18 +37,24 @@ function OptionChipInput({ options, onChange }: OptionChipInputProps) {
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       {options.length === 0 ? (
-        <p>Leave blank and Helios will infer the realistic option set</p>
+        <p className="font-mono text-metadata leading-[1.3] text-tertiary">
+          Leave blank and Helios will infer the realistic option set
+        </p>
       ) : (
-        <ul>
+        <ul className="flex flex-wrap gap-1.5">
           {options.map((option) => (
-            <li key={option}>
+            <li
+              key={option}
+              className="inline-flex items-center gap-1 rounded-sm border border-hairline bg-surface-raised px-2 py-0.5 font-mono text-body-mono leading-[1.3] text-primary"
+            >
               {option}
               <button
                 type="button"
                 onClick={() => removeOption(option)}
                 aria-label={`Remove ${option}`}
+                className="text-secondary hover:text-primary"
               >
                 ×
               </button>
@@ -65,6 +71,7 @@ function OptionChipInput({ options, onChange }: OptionChipInputProps) {
         }
         onChange={(event) => setDraft(event.target.value)}
         onKeyDown={handleKeyDown}
+        className="w-full rounded-sm border border-hairline bg-base px-2 py-1.5 font-ui text-body-ui text-primary placeholder:text-tertiary disabled:text-tertiary"
       />
     </div>
   )
