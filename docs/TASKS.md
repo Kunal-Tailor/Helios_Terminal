@@ -150,11 +150,11 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 ## Phase 8 — Frontend Skeleton
 
-- [ ] 8.0 — `docs/frontend-docs/` — create frontend docs folder and add `01_FRONTEND_VISION.md`, other frontend-related docs.
+- [x] 8.0 — `docs/frontend-docs/` — create frontend docs folder and add `01_FRONTEND_VISION.md`, other frontend-related docs.
   Commit: `Update - 8.0 - frontend docs folder & data`
 - [x] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
   Commit: `Update - 8.1 - Vite + React scaffold`
-- [ ] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
+- [x] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
   Commit: `Update - 8.2 - Tailwind setup with design tokens`
 - [ ] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
   Commit: `Update - 8.3 - API client for decisions endpoint`
