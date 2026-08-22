@@ -152,7 +152,7 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 - [ ] 8.0 — `docs/frontend-docs/` — create frontend docs folder and add `01_FRONTEND_VISION.md`, other frontend-related docs.
   Commit: `Update - 8.0 - frontend docs folder & data`
-- [ ] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
+- [x] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
   Commit: `Update - 8.1 - Vite + React scaffold`
 - [ ] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
   Commit: `Update - 8.2 - Tailwind setup with design tokens`
