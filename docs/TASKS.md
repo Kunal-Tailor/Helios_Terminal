@@ -150,34 +150,45 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 ## Phase 8 — Frontend Skeleton
 
+- [ ] 8.0 — `docs/frontend-docs/` — create frontend docs folder and add `01_FRONTEND_VISION.md`, other frontend-related docs.
+  Commit: `Update - 8.0 - frontend docs folder & data`
 - [ ] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
   Commit: `Update - 8.1 - Vite + React scaffold`
-- [ ] 8.2 — Add Tailwind CSS config
-  Commit: `Update - 8.2 - Tailwind setup`
-- [ ] 8.3 — `lib/` — API client function to call the backend `/decisions` endpoint
+- [ ] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
+  Commit: `Update - 8.2 - Tailwind setup with design tokens`
+- [ ] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
   Commit: `Update - 8.3 - API client for decisions endpoint`
 
-## Phase 9 — Frontend, One Component at a Time
+## Phase 9 — Frontend, One Flow Deep First
 
-- [ ] 9.1 — `pages/DecisionInput.tsx` — form to submit entity/capability/options (plain form, no styling polish yet)
+Build the Decision Input → Result View flow completely (9.1–9.3) before touching the Dashboard or dependency graph — see `docs/frontend-docs/03_UX_FLOWS.md` (Flow A) and `04_SCREEN_INVENTORY.md` for the full spec of each screen below.
+
+- [ ] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
   Commit: `Update - 9.1 - decision input form`
-- [ ] 9.2 — Wire form submit to backend API client, show raw JSON response
-  Commit: `Update - 9.2 - wire input form to backend`
-- [ ] 9.3 — `components/verdict-panel/` — render the comparative verdict as a simple side-by-side layout
-  Commit: `Update - 9.3 - verdict panel component`
-- [ ] 9.4 — `components/dependency-graph/` — react-flow/D3 visualisation of dependency relationships
-  Commit: `Update - 9.4 - dependency graph visualisation`
-- [ ] 9.5 — `components/dashboard/` — assemble multi-pane terminal-style layout using the above components
-  Commit: `Update - 9.5 - multi-pane dashboard layout`
-- [ ] 9.6 — `components/command-bar/` — command-driven input UI (can be a stretch/polish task)
-  Commit: `Update - 9.6 - command bar UI`
+- [ ] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
+  Commit: `Update - 9.2 - pipeline status strip wired to backend`
+- [ ] 9.3 — `components/verdict-panel/VerdictBanner.tsx` + `PathCard.tsx`, `pages/DecisionResult.tsx` — render the Orchestrator verdict banner and one card per path (outcome/dependency/failure-mode), per `06_COMPONENT_BREAKDOWN.md`'s states for each; plain layout, no design-token styling applied yet
+  Commit: `Update - 9.3 - result view (verdict banner + path cards)`
+- [ ] 9.4 — Apply `05_DESIGN_SYSTEM.md` tokens and the density rule (dense chrome / roomy verdict content) to 9.1–9.3; this is the first real styling pass, deliberately kept separate from building the raw components above
+  Commit: `Update - 9.4 - design system pass on input and result flow`
+
+**Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.
+
+- [ ] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
+  Commit: `Update - 9.5 - dependency graph visualisation`
+- [ ] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
+  Commit: `Update - 9.6 - multi-pane dashboard layout`
+- [ ] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
+  Commit: `Update - 9.7 - command bar (navigation only)`
 
 ## Phase 10 — Integration & Polish
 
-- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered; commit any fixes found, described individually
+- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
   Commit: `Update - 10.1 - end-to-end manual verification pass`
-- [ ] 10.2 — Styling pass to match Bloomberg-Terminal aesthetic (colors, density, typography)
-  Commit: `Update - 10.2 - terminal aesthetic pass`
+- [ ] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
+  Commit: `Update - 10.2 - accessibility and motion pass`
+- [ ] 10.3 — Final Hybrid Terminal aesthetic review: confirm density rule was applied consistently (dense chrome, roomy verdict/dependency content) and the Dependency Thread signature element reads clearly, not decoratively
+  Commit: `Update - 10.3 - terminal aesthetic review pass`
 
 ## Phase 11 — Deployment (last, not in parallel with feature work)
 
