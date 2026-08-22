@@ -1,3 +1,5 @@
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation } from '@tanstack/react-query'
 import DecisionInputForm from '../components/decision-input/DecisionInputForm'
 import PipelineStatusStrip from '../components/pipeline-status/PipelineStatusStrip'
@@ -6,7 +8,17 @@ import { ApiError, submitDecision } from '../lib/api'
 import type { DecisionRequest } from '../lib/api'
 
 function Home() {
-  const mutation = useMutation({ mutationFn: (brief: DecisionRequest) => submitDecision(brief) })
+  const navigate = useNavigate()
+  const mutation = useMutation({
+    mutationKey: ['submitDecision'],
+    mutationFn: (brief: DecisionRequest) => submitDecision(brief),
+  })
+
+  useEffect(() => {
+    if (mutation.isSuccess && mutation.data && mutation.data.verification_passed) {
+      navigate('/result')
+    }
+  }, [mutation.isSuccess, mutation.data, navigate])
 
   const phase: StripPhase | null = mutation.isPending
     ? 'running'
