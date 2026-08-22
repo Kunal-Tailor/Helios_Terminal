@@ -163,7 +163,7 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 Build the Decision Input → Result View flow completely (9.1–9.3) before touching the Dashboard or dependency graph — see `docs/frontend-docs/03_UX_FLOWS.md` (Flow A) and `04_SCREEN_INVENTORY.md` for the full spec of each screen below.
 
-- [ ] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
+- [x] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
   Commit: `Update - 9.1 - decision input form`
 - [ ] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
   Commit: `Update - 9.2 - pipeline status strip wired to backend`
