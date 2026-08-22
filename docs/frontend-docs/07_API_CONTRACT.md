@@ -1,76 +1,110 @@
 # 07_API_CONTRACT.md — Helios Terminal Frontend
 
-## Status: draft, needs sync against real backend schemas
+## Status: synced against backend schemas (Phase 8.3)
 
-This is drafted from `PRD.md`, `ARCHITECTURE.md`, and `FEATURES.md` — it has **not** been checked against the actual Pydantic models in `backend/app/api/schemas/` (Phase 7.1). Before Phase 8.3 (API client), diff this file against the real schema file and correct any field-name or shape mismatches. Treat divergence between this doc and the live schema as a bug in this doc, not in the backend.
+Originally drafted from `PRD.md`, `ARCHITECTURE.md`, and `FEATURES.md`. During Phase 8.3 every field name and shape below was diffed against `backend/app/api/schemas/decision.py` and `backend/app/api/routes/decisions.py`, and the draft was corrected to match the live backend. Where the frontend would prefer a different shape (e.g. a severity enum), that is recorded explicitly as a known divergence / candidate backend addition — not silently assumed.
 
-## Endpoint
+## Endpoints
 
-`POST /decisions`
+Primary (used by `lib/api.ts`):
 
-Per `PRD.md` §6 and `ARCHITECTURE.md` §7.2 — accepts a decision brief, runs the pipeline synchronously (or via background job if Phase 7.3's async handling is active — check whether polling or a single blocking response is what's live before building `lib/api.ts`), returns a verdict.
+`POST /decisions` — synchronous, HTTP 200. Accepts a decision brief, runs the 6-stage pipeline with verification gating inline, returns the full `DecisionResponse`.
 
-## Request shape (draft)
+Background variants exist and are live (Phase 7.3), but are intentionally not wired into the client yet:
+
+- `POST /decisions/async` — HTTP 202, returns a `JobStatusResponse` (`job_id`, `status`, `created_at`)
+- `GET /decisions/jobs/{job_id}` — poll for `status: queued | processing | completed | failed`; `result` carries a full `DecisionResponse` once completed
+
+## Request shape
 
 ```json
 {
   "entity": "string",
   "capability": "string",
-  "candidate_options": ["string", "..."]   // may be empty — triggers system inference
+  "options": ["string", "..."]
 }
 ```
 
-- `candidate_options: []` is a valid, meaningful input (not an error state) — maps directly to the "let Helios infer" path in `03_UX_FLOWS.md`. Confirm the backend accepts an empty array vs. expecting the field omitted entirely.
+- Field is `options`, not `candidate_options` (draft naming corrected during sync).
+- `entity` and `capability` require `min_length=1` (empty strings rejected server-side).
+- `options` is optional; omitting it or sending `[]` are both valid and equivalent — both trigger the "let Helios infer" path from `03_UX_FLOWS.md`.
 
-## Response shape (draft)
+## Response shape
 
 ```json
 {
-  "decision_brief": {
+  "entity": "string",
+  "capability": "string",
+  "options": ["string", "..."],
+  "verdict": {
     "entity": "string",
     "capability": "string",
-    "candidate_options": ["string", "..."],
-    "options_source": "user_specified | system_inferred"
-  },
-  "paths": [
-    {
-      "name": "string",              // e.g. "Build", "Buy", "Outsource"
-      "outcome": "string",           // Outcome-Prediction Agent output
-      "dependency": {
-        "name": "string",            // Dependency-Diagnosis Agent output
-        "failure_mode": "string",    // what breaks later if unmanaged
-        "severity": "critical | elevated | low"
-      }
+    "recommended_path": "string",
+    "verdict_summary": "string",
+    "key_recommendations": ["string", "..."],
+    "path_stances": { "Build": "string", "Buy": "string" },
+    "cross_path_comparison": {
+      "comparative_narrative": "string",
+      "path_comparisons": [
+        {
+          "scenario_name": "string",
+          "lock_in_count": 0,
+          "max_severity_score": 0.0,
+          "key_tradeoffs": ["string"],
+          "path_summary": "string"
+        }
+      ]
+    },
+    "explanation_trail": {
+      "summary": "string",
+      "steps": [
+        { "stage": "string", "claim": "string", "evidence": "string" }
+      ],
+      "sources": ["string"]
     }
-  ],
-  "verdict": {
-    "summary": "string",             // Orchestrator Agent's comparative synthesis
-    "recommended_path": "string | null"
   },
-  "verification": {
-    "passed": true,
-    "failed_stage": "string | null"  // populated only if verification halted the pipeline
-  }
+  "verification_passed": true,
+  "verification_failed_stage": null,
+  "verification_results": [
+    {
+      "passed": true,
+      "confidence": 0.0,
+      "reason": "string",
+      "claim": "string",
+      "agent_stage": "string"
+    }
+  ]
 }
 ```
 
-- `severity` as an enum is a frontend assumption to drive `StatusBadge`/risk-color tokens (`05_DESIGN_SYSTEM.md`) — confirm whether the backend actually classifies severity today or whether this needs to be requested as a backend addition. Per project memory, `key_recommendations` and `cross_path_comparison` exist in the verdict object on the backend side too — reconcile field names against the real schema rather than assuming this draft's naming.
-- `verification.failed_stage` is required for the `PipelineStatusStrip` failure state in `06_COMPONENT_BREAKDOWN.md` to show *which* stage failed, not just that something failed. Flag this to the backend team explicitly if it isn't already surfaced — this is exactly the kind of field a frontend-only doc can silently assume exists.
+Nullability / absence semantics confirmed against the schema:
 
-## Error shape (draft — standard FastAPI/HTTP error assumed)
+- `verdict` is `null` if the pipeline halted before the Orchestrator stage (e.g. verification gate failure).
+- `recommended_path` is `""` when unset — the backend never emits `null` for it.
+- `cross_path_comparison` and `explanation_trail` are nullable members of `verdict`.
+- Verification fields are **flat, top-level**: `verification_passed`, `verification_failed_stage` (nullable — populated when a gate halts the pipeline), plus per-claim `verification_results`.
+- There is no nested `decision_brief` object and no `paths[]` array. Per-path data lives in `verdict.path_stances` (name → stance text) and `verdict.cross_path_comparison.path_comparisons[]`.
+- There is no `options_source` field distinguishing user-specified from system-inferred options; if the UI ever needs that distinction it requires a backend addition.
+
+Known divergences / candidate backend additions:
+
+- **Severity enum does not exist.** The draft assumed `"critical | elevated | low"` per dependency. The backend exposes numeric scoring instead: `max_severity_score: float` on each entry of `cross_path_comparison.path_comparisons`. If badge-style enum severities are wanted later, either band the numbers client-side or request the addition server-side — decided at component time, not assumed here.
+- `verification.failed_stage` from the draft maps to the real `verification_failed_stage` — confirmed surfaced on halt, so the `PipelineStatusStrip` failure state can show *which* stage failed.
+
+## Error shape (standard FastAPI/HTTP error)
 
 ```json
 {
-  "detail": "string"
+  "detail": "string | array"
 }
 ```
 
-Frontend should not assume `detail` is user-presentable copy — map known error cases (verification halt, timeout, malformed brief) to the plain-language copy defined in `03_UX_FLOWS.md`'s Flow C, rather than rendering `detail` directly.
+Note `detail` is an array of validation-error objects on 422 responses. The frontend should not render `detail` raw — map known error cases (verification halt, timeout, malformed brief) to the plain-language copy defined in `03_UX_FLOWS.md`'s Flow C at render time.
 
-## Sync checklist (do before Phase 8.3)
+## Sync checklist (completed Phase 8.3)
 
-- [ ] Confirm actual field names in `backend/app/api/schemas/` match this draft
-- [ ] Confirm whether `POST /decisions` is synchronous or requires polling a job ID (Phase 7.3)
-- [ ] Confirm `severity` classification exists or needs to be added
-- [ ] Confirm `verification.failed_stage` (or equivalent) is actually returned on halt
-- [ ] Update this file's status line once confirmed — remove "draft" status
+- [x] Confirm actual field names in `backend/app/api/schemas/` match this draft — draft corrected (`candidate_options` → `options`, `summary` → `verdict_summary`, flat verification fields, no `decision_brief`/`paths[]`)
+- [x] Confirm whether `POST /decisions` is synchronous or requires polling — synchronous is live and is what `lib/api.ts` calls; async job endpoints also exist
+- [x] Confirm `severity` classification exists or needs to be added — does not exist as an enum; numeric `max_severity_score` only; recorded above as a known divergence
+- [x] Confirm `verification.failed_stage` (or equivalent) is actually returned on halt — confirmed: top-level `verification_failed_stage`
+- [x] Update this file's status line once confirmed — done; "draft" status removed

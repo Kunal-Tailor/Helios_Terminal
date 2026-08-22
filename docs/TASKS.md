@@ -156,7 +156,7 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
   Commit: `Update - 8.1 - Vite + React scaffold`
 - [x] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
   Commit: `Update - 8.2 - Tailwind setup with design tokens`
-- [ ] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
+- [x] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
   Commit: `Update - 8.3 - API client for decisions endpoint`
 
 ## Phase 9 — Frontend, One Flow Deep First
