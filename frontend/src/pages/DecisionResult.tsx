@@ -18,13 +18,13 @@ function DecisionResult() {
 
   if (!latest) {
     return (
-      <main className="mx-auto max-w-2xl space-y-6 px-8 py-10">
+      <main className="panel-transition mx-auto max-w-2xl space-y-6 px-8 py-10">
         <p className="font-mono text-body-mono leading-[1.3] text-secondary">
           No completed decision to show.
         </p>
         <Link
           to="/"
-          className="inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+          className="panel-transition inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
         >
           New decision
         </Link>
@@ -35,7 +35,7 @@ function DecisionResult() {
   const paths = latest.response.verdict?.cross_path_comparison?.path_comparisons ?? []
 
   return (
-    <main className="mx-auto max-w-5xl space-y-6 px-8 py-10">
+    <main className="panel-transition mx-auto max-w-5xl space-y-6 px-8 py-10">
       <VerdictBanner
         entity={latest.brief.entity}
         capability={latest.brief.capability}
@@ -51,13 +51,13 @@ function DecisionResult() {
       <div className="flex gap-3">
         <Link
           to="/dashboard"
-          className="inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+          className="panel-transition inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
         >
           Open dashboard
         </Link>
         <Link
           to="/"
-          className="inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
+          className="panel-transition inline-block rounded-sm border border-hairline bg-surface-raised px-3 py-1.5 font-ui text-body-ui text-primary hover:border-accent"
         >
           New decision
         </Link>

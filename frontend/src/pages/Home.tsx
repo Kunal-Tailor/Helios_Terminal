@@ -40,7 +40,7 @@ function Home() {
     phase === null || phase === 'halted' || phase === 'unreachable' || phase === 'error'
 
   return (
-    <main className="mx-auto max-w-2xl space-y-6 px-8 py-10">
+    <main className="panel-transition mx-auto max-w-2xl space-y-6 px-8 py-10">
       <h1 className="font-mono text-section-header leading-[1.3] text-primary">
         Helios Terminal
       </h1>

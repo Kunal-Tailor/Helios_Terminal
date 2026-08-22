@@ -27,7 +27,7 @@ function DecisionInputForm({ onSubmit }: DecisionInputFormProps) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 rounded-sm border border-hairline bg-surface p-6">
+    <form onSubmit={handleSubmit} className="panel-transition space-y-4 rounded-sm border border-hairline bg-surface p-6">
       <div className="space-y-1">
         <label
           htmlFor="entity"

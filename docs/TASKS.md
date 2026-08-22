@@ -185,7 +185,7 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 - [x] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
   Commit: `Update - 10.1 - end-to-end manual verification pass`
-- [ ] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
+- [x] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
   Commit: `Update - 10.2 - accessibility and motion pass`
 - [ ] 10.3 — Final Hybrid Terminal aesthetic review: confirm density rule was applied consistently (dense chrome, roomy verdict/dependency content) and the Dependency Thread signature element reads clearly, not decoratively
   Commit: `Update - 10.3 - terminal aesthetic review pass`

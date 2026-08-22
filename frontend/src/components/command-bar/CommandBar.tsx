@@ -44,7 +44,7 @@ function CommandBar({ onVerdict, onGraph, onNew }: CommandBarProps) {
       <button
         type="button"
         onClick={focus}
-        className="w-full rounded-sm border border-hairline bg-surface px-2 py-1 text-left font-mono text-metadata leading-[1.3] text-tertiary hover:border-accent"
+        className="panel-transition w-full rounded-sm border border-hairline bg-surface px-2 py-1 text-left font-mono text-metadata leading-[1.3] text-tertiary hover:border-accent"
       >
         Press / for commands
       </button>
@@ -52,7 +52,7 @@ function CommandBar({ onVerdict, onGraph, onNew }: CommandBarProps) {
   }
 
   return (
-    <form onSubmit={submit} className="space-y-1">
+    <form onSubmit={submit} className="panel-transition space-y-1">
       <input
         ref={inputRef}
         value={value}
@@ -63,7 +63,7 @@ function CommandBar({ onVerdict, onGraph, onNew }: CommandBarProps) {
         onKeyDown={handleKeyDown}
         placeholder="Type a command…"
         aria-label="Command bar"
-        className="w-full rounded-sm border border-accent bg-base px-2 py-1 font-mono text-body-mono leading-[1.3] text-primary placeholder:text-tertiary"
+        className="panel-transition w-full rounded-sm border border-accent bg-base px-2 py-1 font-mono text-body-mono leading-[1.3] text-primary placeholder:text-tertiary"
       />
       <ul className="flex flex-wrap gap-x-4 gap-y-0.5 font-mono text-metadata leading-[1.3] text-secondary">
         {commands.map((command) => (

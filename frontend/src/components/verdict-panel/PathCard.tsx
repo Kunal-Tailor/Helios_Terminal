@@ -15,7 +15,7 @@ function PathCard({ path }: PathCardProps) {
   const severity = severityLabel(path.max_severity_score)
 
   return (
-    <article className="space-y-4 rounded-sm border border-hairline bg-surface p-8 leading-[1.6]">
+    <article className="panel-transition space-y-4 rounded-sm border border-hairline bg-surface p-8 leading-[1.6]">
       <h3 className="font-mono text-section-header leading-[1.3] text-primary">
         {path.scenario_name}
       </h3>

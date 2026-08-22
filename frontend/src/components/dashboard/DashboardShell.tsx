@@ -30,8 +30,8 @@ function DashboardShell({ response, brief }: DashboardShellProps) {
           ref={verdictPaneRef}
           className={
             activePane === 'verdict'
-              ? 'rounded-sm border border-accent'
-              : 'rounded-sm border border-transparent'
+              ? 'panel-transition rounded-sm border border-accent'
+              : 'panel-transition rounded-sm border border-transparent'
           }
         >
           <VerdictBanner
@@ -51,8 +51,8 @@ function DashboardShell({ response, brief }: DashboardShellProps) {
               ref={graphPaneRef}
               className={
                 activePane === 'graph'
-                  ? 'rounded-sm border border-accent'
-                  : 'rounded-sm border border-transparent'
+                  ? 'panel-transition rounded-sm border border-accent'
+                  : 'panel-transition rounded-sm border border-transparent'
               }
             >
               <DependencyGraph paths={paths} />

@@ -62,7 +62,7 @@ function PipelineStatusStrip({ phase, failedStage, onRetry, isRateLimit }: Pipel
   return (
     <section
       aria-live="polite"
-      className="space-y-3 rounded-sm border border-hairline bg-surface p-4 font-mono text-body-mono leading-[1.3]"
+      className="panel-transition space-y-3 rounded-sm border border-hairline bg-surface p-4 font-mono text-body-mono leading-[1.3]"
     >
       <h2
         className={

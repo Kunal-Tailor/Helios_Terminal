@@ -11,6 +11,16 @@
     outline: 2px solid var(--accent);
     outline-offset: 2px;
   }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
@@ -20,6 +30,16 @@
 
   .dependency-graph .react-flow__node:hover {
     @apply border-accent;
+  }
+
+  .panel-transition {
+    transition: opacity 120ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .panel-transition {
+      transition: none;
+    }
   }
 }
 

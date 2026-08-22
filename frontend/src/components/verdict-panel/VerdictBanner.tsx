@@ -19,7 +19,7 @@ function VerdictBanner({
     return (
       <section
         aria-busy="true"
-        className="rounded-sm border border-hairline bg-surface p-8 font-mono text-body-mono leading-[1.3] text-secondary"
+        className="panel-transition rounded-sm border border-hairline bg-surface p-8 font-mono text-body-mono leading-[1.3] text-secondary"
       >
         <p>Loading verdict…</p>
       </section>
@@ -28,14 +28,14 @@ function VerdictBanner({
 
   if (!summary) {
     return (
-      <section className="rounded-sm border border-hairline bg-surface p-8 font-mono text-body-mono leading-[1.3] text-secondary">
+      <section className="panel-transition rounded-sm border border-hairline bg-surface p-8 font-mono text-body-mono leading-[1.3] text-secondary">
         <p>Verdict unavailable.</p>
       </section>
     )
   }
 
   return (
-    <section className="space-y-4 rounded-sm border border-hairline bg-surface p-8 leading-[1.6]">
+    <section className="panel-transition space-y-4 rounded-sm border border-hairline bg-surface p-8 leading-[1.6]">
       <p className="font-mono text-metadata leading-[1.3] text-secondary">
         {entity} — {capability} — {optionsNote}
       </p>
