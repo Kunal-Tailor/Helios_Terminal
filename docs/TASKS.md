@@ -174,7 +174,7 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 **Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.
 
-- [ ] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
+- [x] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
   Commit: `Update - 9.5 - dependency graph visualisation`
 - [ ] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
   Commit: `Update - 9.6 - multi-pane dashboard layout`
