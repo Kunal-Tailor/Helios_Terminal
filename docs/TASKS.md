@@ -165,7 +165,7 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 - [x] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
   Commit: `Update - 9.1 - decision input form`
-- [ ] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
+- [x] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
   Commit: `Update - 9.2 - pipeline status strip wired to backend`
 - [ ] 9.3 — `components/verdict-panel/VerdictBanner.tsx` + `PathCard.tsx`, `pages/DecisionResult.tsx` — render the Orchestrator verdict banner and one card per path (outcome/dependency/failure-mode), per `06_COMPONENT_BREAKDOWN.md`'s states for each; plain layout, no design-token styling applied yet
   Commit: `Update - 9.3 - result view (verdict banner + path cards)`
