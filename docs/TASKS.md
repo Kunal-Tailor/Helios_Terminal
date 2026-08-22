@@ -174,16 +174,16 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 **Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.
 
-- [ ] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
+- [x] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
   Commit: `Update - 9.5 - dependency graph visualisation`
-- [ ] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
+- [x] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
   Commit: `Update - 9.6 - multi-pane dashboard layout`
-- [ ] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
+- [x] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
   Commit: `Update - 9.7 - command bar (navigation only)`
 
 ## Phase 10 — Integration & Polish
 
-- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
+- [x] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
   Commit: `Update - 10.1 - end-to-end manual verification pass`
 - [ ] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
   Commit: `Update - 10.2 - accessibility and motion pass`

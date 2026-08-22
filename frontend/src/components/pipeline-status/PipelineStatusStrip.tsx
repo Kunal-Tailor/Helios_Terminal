@@ -15,6 +15,7 @@ interface PipelineStatusStripProps {
   phase: StripPhase
   failedStage?: string | null
   onRetry?: () => void
+  isRateLimit?: boolean
 }
 
 function stageMarkText(mark: StageMark): string {
@@ -37,7 +38,7 @@ const HEADER_TEXT: Record<StripPhase, string> = {
   error: 'Request failed',
 }
 
-function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStripProps) {
+function PipelineStatusStrip({ phase, failedStage, onRetry, isRateLimit }: PipelineStatusStripProps) {
   let marks: StageMark[]
   if (phase === 'complete') {
     marks = STAGES.map(() => 'complete')
@@ -131,7 +132,11 @@ function PipelineStatusStrip({ phase, failedStage, onRetry }: PipelineStatusStri
       )}
       {phase === 'error' && (
         <>
-          <p className="text-primary">Helios returned an unexpected response.</p>
+          <p className="text-primary">
+            {isRateLimit
+              ? 'LLM API rate limit exceeded. Please try again in a few moments.'
+              : 'Helios returned an unexpected response.'}
+          </p>
           {onRetry && (
             <button
               type="button"

@@ -1,4 +1,4 @@
-const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000'
+const API_BASE_URL: string = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8001'
 
 export interface DecisionRequest {
   entity: string
@@ -63,12 +63,14 @@ export interface DecisionResponse {
 export class ApiError extends Error {
   readonly status: number
   readonly detail: unknown
+  readonly isRateLimit: boolean
 
   constructor(status: number, detail: unknown) {
     super(`Decision request failed with status ${status}`)
     this.name = 'ApiError'
     this.status = status
     this.detail = detail
+    this.isRateLimit = status === 503
   }
 }
 

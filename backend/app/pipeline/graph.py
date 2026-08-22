@@ -45,6 +45,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import logging
 
+from openai import RateLimitError
+
 from app.agents.dependency_diagnosis import dependency_diagnosis_agent
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DiagnosisSet
 from app.agents.ingestion import ingestion_agent
@@ -185,6 +187,9 @@ def run_pipeline(
             result.verification_failed_stage = "ingestion"
             logger.warning("Pipeline halted at stage 'ingestion' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'ingestion': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'ingestion': %s", exc, exc_info=True)
         result.verification_passed = False
@@ -231,6 +236,9 @@ def run_pipeline(
             result.verification_failed_stage = "stack_mapping"
             logger.warning("Pipeline halted at stage 'stack_mapping' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'stack_mapping': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'stack_mapping': %s", exc, exc_info=True)
         result.verification_passed = False
@@ -277,6 +285,9 @@ def run_pipeline(
             result.verification_failed_stage = "scenario_generation"
             logger.warning("Pipeline halted at stage 'scenario_generation' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'scenario_generation': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'scenario_generation': %s", exc, exc_info=True)
         result.verification_passed = False
@@ -323,6 +334,9 @@ def run_pipeline(
             result.verification_failed_stage = "outcome_prediction"
             logger.warning("Pipeline halted at stage 'outcome_prediction' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'outcome_prediction': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'outcome_prediction': %s", exc, exc_info=True)
         result.verification_passed = False
@@ -369,6 +383,9 @@ def run_pipeline(
             result.verification_failed_stage = "dependency_diagnosis"
             logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
         result.verification_passed = False
@@ -417,6 +434,9 @@ def run_pipeline(
             result.verification_failed_stage = "orchestrator"
             logger.warning("Pipeline halted at stage 'orchestrator' due to verification failure.")
             return result
+    except RateLimitError as exc:
+        logger.error("Rate limit error executing stage 'orchestrator': %s", exc, exc_info=True)
+        raise
     except Exception as exc:
         logger.error("Error executing stage 'orchestrator': %s", exc, exc_info=True)
         result.verification_passed = False

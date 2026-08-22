@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 import uuid
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, status
+from openai import RateLimitError
 
 from app.api.schemas import DecisionRequest, DecisionResponse, JobStatusResponse
 from app.pipeline.graph import run_pipeline
@@ -44,12 +45,18 @@ JOBS: dict[str, JobStatusResponse] = {}
 )
 def create_decision(brief: DecisionRequest) -> DecisionResponse:
     """Run the 6-stage AI sourcing pipeline synchronously for *brief*."""
-    pipeline_result = run_pipeline(
-        entity=brief.entity,
-        capability=brief.capability,
-        options=brief.options,
-    )
-    return DecisionResponse.from_pipeline_result(pipeline_result)
+    try:
+        pipeline_result = run_pipeline(
+            entity=brief.entity,
+            capability=brief.capability,
+            options=brief.options,
+        )
+        return DecisionResponse.from_pipeline_result(pipeline_result)
+    except RateLimitError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="LLM API rate limit exceeded. Please try again in a few moments.",
+        )
 
 
 @router.post(
@@ -117,6 +124,10 @@ def _process_decision_job(job_id: str, brief: DecisionRequest) -> None:
         response_model = DecisionResponse.from_pipeline_result(pipeline_result)
         JOBS[job_id].result = response_model
         JOBS[job_id].status = "completed"
+        JOBS[job_id].completed_at = datetime.now(timezone.utc).isoformat()
+    except RateLimitError as exc:
+        JOBS[job_id].status = "failed"
+        JOBS[job_id].error = f"LLM API rate limit exceeded: {exc}"
         JOBS[job_id].completed_at = datetime.now(timezone.utc).isoformat()
     except Exception as exc:
         JOBS[job_id].status = "failed"

@@ -20,6 +20,10 @@ function Home() {
     }
   }, [mutation.isSuccess, mutation.data, navigate])
 
+  const isRateLimitError = mutation.isError &&
+    mutation.error instanceof ApiError &&
+    mutation.error.isRateLimit
+
   const phase: StripPhase | null = mutation.isPending
     ? 'running'
     : mutation.isError
@@ -49,6 +53,7 @@ function Home() {
           onRetry={
             mutation.variables ? () => mutation.mutate(mutation.variables) : undefined
           }
+          isRateLimit={isRateLimitError}
         />
       )}
       {showForm && <DecisionInputForm onSubmit={(brief) => mutation.mutate(brief)} />}
