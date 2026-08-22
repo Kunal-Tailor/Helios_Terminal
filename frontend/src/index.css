@@ -13,6 +13,16 @@
   }
 }
 
+@layer components {
+  .dependency-graph .react-flow__node {
+    @apply cursor-pointer;
+  }
+
+  .dependency-graph .react-flow__node:hover {
+    @apply border-accent;
+  }
+}
+
 :root {
   --bg-base: #0B0E11;
   --bg-surface: #12161B;
