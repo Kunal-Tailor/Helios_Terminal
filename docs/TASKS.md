@@ -176,7 +176,7 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 - [x] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
   Commit: `Update - 9.5 - dependency graph visualisation`
-- [ ] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
+- [x] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
   Commit: `Update - 9.6 - multi-pane dashboard layout`
 - [ ] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
   Commit: `Update - 9.7 - command bar (navigation only)`
