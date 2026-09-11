@@ -21,6 +21,7 @@ from app.agents.stack_mapping.stack_mapping_agent import StackScope
 from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
 from app.main import app
 from app.pipeline.graph import PipelineResult
+from app.verification.recalibration import RecalibrationRequest
 
 client = TestClient(app)
 
@@ -79,13 +80,65 @@ def test_post_decisions_endpoint_success():
         assert data["verdict"] is not None
         assert data["verdict"]["recommended_path"] == "License Open-Weight Model"
         assert data["verdict"]["verdict_summary"] == "License open-weight model is recommended due to tactical offline autonomy."
-        assert len(data["verdict"]["key_recommendations"]) == 2
+        assert "recalibration_trail" in data
+        assert data["recalibration_trail"] == []
 
         mock_run.assert_called_once_with(
             entity="Indian Army signals division",
             capability="small language model for edge inference",
             options=["build in-house", "license open-weight"],
         )
+
+
+def test_post_decisions_endpoint_surfaces_recalibration_trail():
+    """Test POST /decisions surfaces recalibration_trail with backward stage routing metadata."""
+    mock_verdict = OrchestratorVerdict(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        recommended_path="License Open-Weight Model",
+        verdict_summary="License open-weight model recommended.",
+    )
+
+    mock_recal = RecalibrationRequest(
+        from_stage="stack_mapping",
+        to_stage="ingestion",
+        reason="insufficient",
+        gap_description="Only 1 surviving layer; need additional grounding facts.",
+        iteration_count=1,
+    )
+
+    mock_result = PipelineResult(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house", "license open-weight"],
+        verdict=mock_verdict,
+        verification_passed=True,
+        recalibration_trail=[mock_recal],
+        partial_verdict_caveats=["Constrained recalibration on stack_mapping -> ingestion."],
+    )
+
+    payload = {
+        "entity": "Indian Army signals division",
+        "capability": "small language model for edge inference",
+        "options": ["build in-house", "license open-weight"],
+    }
+
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result):
+        response = client.post("/decisions", json=payload)
+        assert response.status_code == 200
+
+        data = response.json()
+        assert "recalibration_trail" in data
+        assert len(data["recalibration_trail"]) == 1
+        item = data["recalibration_trail"][0]
+        assert item["from_stage"] == "stack_mapping"
+        assert item["to_stage"] == "ingestion"
+        assert item["reason"] == "insufficient"
+        assert item["gap_description"] == "Only 1 surviving layer; need additional grounding facts."
+        assert item["iteration_count"] == 1
+
+        assert "partial_verdict_caveats" in data
+        assert len(data["partial_verdict_caveats"]) == 1
 
 
 def test_post_decisions_endpoint_validation_error():
@@ -201,6 +254,8 @@ def test_post_decisions_endpoint_full_pipeline_flow():
         assert data["entity"] == "ACME Corp"
         assert data["capability"] == "Speech Recognition"
         assert data["verdict"]["recommended_path"] == "Build"
+        assert "recalibration_trail" in data
+        assert data["recalibration_trail"] == []
 
 
 def test_post_decisions_async_and_get_job_status():

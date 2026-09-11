@@ -172,7 +172,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.9 - orchestrator path-scoped fallback`
 - [x] 7.5.10 — Partial-verdict terminal state: when the loop-guard cap is hit before a stage becomes sufficient, the pipeline returns a verdict with explicit per-path caveat flags instead of hard-failing or looping indefinitely; unit + integration test forcing the cap and asserting a caveat-flagged (not null) verdict
   Commit: `Update - 7.5.10 - partial-verdict terminal state on loop-guard exceeded`
-- [ ] 7.5.11 — Extend API response schema (`api/schemas/`) to include a `recalibration_trail`: which stages looped back, why, and how many iterations — supports FR-4/FR-5 explainability; update `POST /decisions` integration test to assert the trail is present and empty for a clean run
+- [x] 7.5.11 — Extend API response schema (`api/schemas/`) to include a `recalibration_trail`: which stages looped back, why, and how many iterations — supports FR-4/FR-5 explainability; update `POST /decisions` integration test to assert the trail is present and empty for a clean run
   Commit: `Update - 7.5.11 - recalibration trail in API response`
 - [ ] 7.5.12 — Full end-to-end verification pass: one real (non-mocked) decision brief run through the pipeline confirming at least one deliberate insufficient-input scenario triggers a fallback, resolves within the retry cap, and produces a fully populated verdict
   Commit: `Update - 7.5.12 - end-to-end recalibration verification pass`

@@ -11,6 +11,8 @@ from app.api.schemas.decision import (
     JobStatusResponse,
     OrchestratorVerdictSchema,
     PathComparisonSchema,
+    RecalibrationRequestSchema,
+    RecalibrationTrailItemSchema,
     VerificationResultSchema,
 )
 
@@ -23,5 +25,7 @@ __all__ = [
     "JobStatusResponse",
     "OrchestratorVerdictSchema",
     "PathComparisonSchema",
+    "RecalibrationRequestSchema",
+    "RecalibrationTrailItemSchema",
     "VerificationResultSchema",
 ]

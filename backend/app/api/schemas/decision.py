@@ -9,6 +9,8 @@ Public API
         Pydantic response schema returning pipeline verdict and verification metadata.
     OrchestratorVerdictSchema
         Nested response schema for OrchestratorVerdict data.
+    RecalibrationRequestSchema
+        Response schema for backward recalibration events in the pipeline trail.
     JobStatusResponse
         Response schema for async background decision processing jobs.
 """
@@ -20,6 +22,7 @@ from pydantic import BaseModel, Field
 
 from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
 from app.pipeline.graph import PipelineResult
+from app.verification.recalibration import RecalibrationRequest
 
 
 class DecisionRequest(BaseModel):
@@ -85,6 +88,38 @@ class VerificationResultSchema(BaseModel):
     reason: str
     claim: str
     agent_stage: str
+
+
+class RecalibrationRequestSchema(BaseModel):
+    """Schema representing a backward recalibration event triggered between pipeline stages."""
+
+    from_stage: str = Field(..., description="The stage that detected insufficiency and requested recalibration.")
+    to_stage: str = Field(..., description="The upstream target stage that was re-invoked.")
+    reason: str = Field(..., description="Category of failure: 'insufficient' or 'unverified'.")
+    gap_description: str = Field(..., description="Human-readable description of what was missing.")
+    iteration_count: int = Field(..., description="The iteration count for this stage-pair loop-back.")
+
+    @classmethod
+    def from_dataclass(cls, req: RecalibrationRequest | dict) -> RecalibrationRequestSchema:
+        """Construct schema from RecalibrationRequest dataclass or dict."""
+        if isinstance(req, dict):
+            return cls(
+                from_stage=req["from_stage"],
+                to_stage=req["to_stage"],
+                reason=req["reason"],
+                gap_description=req["gap_description"],
+                iteration_count=req["iteration_count"],
+            )
+        return cls(
+            from_stage=req.from_stage,
+            to_stage=req.to_stage,
+            reason=req.reason,
+            gap_description=req.gap_description,
+            iteration_count=req.iteration_count,
+        )
+
+
+RecalibrationTrailItemSchema = RecalibrationRequestSchema
 
 
 class OrchestratorVerdictSchema(BaseModel):
@@ -153,6 +188,14 @@ class DecisionResponse(BaseModel):
     verification_passed: bool = True
     verification_failed_stage: Optional[str] = None
     verification_results: list[VerificationResultSchema] = Field(default_factory=list)
+    recalibration_trail: list[RecalibrationRequestSchema] = Field(
+        default_factory=list,
+        description="Audit trail of backward recalibration loops executed during pipeline processing.",
+    )
+    partial_verdict_caveats: list[str] = Field(
+        default_factory=list,
+        description="Explicit per-path caveat flags emitted if retry caps were exceeded.",
+    )
 
     @classmethod
     def from_pipeline_result(cls, res: PipelineResult) -> DecisionResponse:
@@ -172,6 +215,11 @@ class DecisionResponse(BaseModel):
             )
             for vr in res.verification_results
         ]
+        recal_trail = [
+            RecalibrationRequestSchema.from_dataclass(req)
+            for req in res.recalibration_trail
+        ]
+        caveats = list(getattr(res, "partial_verdict_caveats", []))
 
         return cls(
             entity=res.entity,
@@ -181,6 +229,8 @@ class DecisionResponse(BaseModel):
             verification_passed=res.verification_passed,
             verification_failed_stage=res.verification_failed_stage,
             verification_results=ver_results,
+            recalibration_trail=recal_trail,
+            partial_verdict_caveats=caveats,
         )
 
 
