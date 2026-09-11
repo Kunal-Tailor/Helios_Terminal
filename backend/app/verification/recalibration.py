@@ -10,7 +10,8 @@ different questions and fire independently.
 
 Phase 7.5.1 — RecalibrationRequest data structure.
 Phase 7.5.2 — Sufficiency-check functions (one per pipeline stage).
-Loop-guard and context accumulation are added in subsequent tasks (7.5.3 – 7.5.4).
+Phase 7.5.3 — LoopGuard: per-(from_stage, to_stage) iteration counter, capped at 2 retries.
+Context accumulation is added in task 7.5.4.
 
 Public API
 -----------
@@ -19,6 +20,9 @@ Public API
                             proceed with what it received from an upstream stage.
     SufficiencyResult     — Outcome of a per-stage sufficiency check (mirrors
                             VerificationResult in verifier.py).
+    LoopGuard             — Stateful per-pipeline-run counter that tracks how many
+                            times each (from_stage, to_stage) pair has looped back
+                            and enforces a configurable retry cap (default: 2).
     check_sufficiency_stack_mapping(stack_scope)         -> SufficiencyResult
     check_sufficiency_scenario_generation(scenario_set)  -> SufficiencyResult
     check_sufficiency_outcome_prediction(outcome_set)    -> SufficiencyResult
@@ -563,3 +567,185 @@ def check_sufficiency_ingestion(context: "IngestionContext") -> SufficiencyResul
         ),
         detail=f"has_summary={has_summary}, key_facts={fact_count}",
     )
+
+
+# ---------------------------------------------------------------------------
+# Loop-guard
+# ---------------------------------------------------------------------------
+
+#: Maximum number of times a single ``(from_stage, to_stage)`` pair may loop
+#: back before the loop-guard declares the cap exceeded.  Counting starts at
+#: the *first* recalibration attempt, so a cap of 2 means:
+#:   attempt 1 → allowed  (iteration_count == 1)
+#:   attempt 2 → allowed  (iteration_count == 2)
+#:   attempt 3 → cap exceeded — pipeline must enter terminal state
+LOOP_GUARD_MAX_RETRIES: int = 2
+
+
+class LoopGuard:
+    """Per-pipeline-run tracker that enforces a retry cap on backward routes.
+
+    One ``LoopGuard`` instance is created when a pipeline run starts and is
+    threaded through every stage handoff.  When a stage emits a
+    :class:`RecalibrationRequest`, it calls :meth:`record` before routing;
+    if :meth:`cap_exceeded` returns ``True``, the pipeline must not loop
+    and should instead invoke the partial-verdict terminal state (Phase 7.5.10).
+
+    Design decisions
+    ----------------
+    * **Per-pair counting** — the counter is keyed on ``(from_stage, to_stage)``
+      as a tuple.  A cap hit on ``(stack_mapping, ingestion)`` does not
+      affect the counter for ``(scenario_generation, stack_mapping)`` or any
+      other pair.  This matches the TASKS.md requirement: "does not reset
+      across *unrelated* stage pairs."
+    * **Cap of 2** — :data:`LOOP_GUARD_MAX_RETRIES` = 2, meaning each pair
+      may attempt recalibration at most twice before the guard blocks further
+      loops.
+    * **Immutable cap** — ``max_retries`` is fixed at construction time.
+      The pipeline router must not bypass or mutate it mid-run.
+    * **Thread-safety** — the pipeline can run stage sub-agents concurrently
+      (e.g. Phase 5 parallel sub-agents), but backward recalibration is
+      always sequential (one stage at a time), so no locking is required.
+
+    Parameters
+    ----------
+    max_retries:
+        Maximum allowed loop-backs per ``(from_stage, to_stage)`` pair.
+        Defaults to :data:`LOOP_GUARD_MAX_RETRIES` (2).
+
+    Examples
+    --------
+    >>> guard = LoopGuard()
+    >>> guard.record("stack_mapping", "ingestion")   # iteration 1 — allowed
+    1
+    >>> guard.record("stack_mapping", "ingestion")   # iteration 2 — allowed
+    2
+    >>> guard.cap_exceeded("stack_mapping", "ingestion")
+    True                                             # 3rd attempt would be blocked
+    >>> guard.cap_exceeded("scenario_generation", "stack_mapping")
+    False                                            # unrelated pair unaffected
+    """
+
+    def __init__(self, max_retries: int = LOOP_GUARD_MAX_RETRIES) -> None:
+        if max_retries < 1:
+            raise ValueError(
+                f"max_retries must be >= 1; got {max_retries}."
+            )
+        self._max_retries: int = max_retries
+        # Maps (from_stage, to_stage) -> current iteration count.
+        self._counts: dict[tuple[str, str], int] = {}
+
+    # ------------------------------------------------------------------
+    # Core interface
+    # ------------------------------------------------------------------
+
+    def record(self, from_stage: str, to_stage: str) -> int:
+        """Increment the counter for the given stage pair and return the new count.
+
+        This must be called exactly once per recalibration attempt, *before*
+        routing the backward edge.  The returned count is the value that should
+        be stored in :attr:`RecalibrationRequest.iteration_count`.
+
+        Parameters
+        ----------
+        from_stage:
+            The stage that detected insufficiency.
+        to_stage:
+            The upstream stage being re-invoked.
+
+        Returns
+        -------
+        int
+            The new iteration count for this pair (starts at 1 on the first call).
+
+        Raises
+        ------
+        ValueError
+            If ``from_stage`` or ``to_stage`` is empty, or they are equal.
+        """
+        _validate_stage_pair(from_stage, to_stage)
+        key = (from_stage, to_stage)
+        self._counts[key] = self._counts.get(key, 0) + 1
+        return self._counts[key]
+
+    def cap_exceeded(self, from_stage: str, to_stage: str) -> bool:
+        """Return ``True`` if this pair has already hit or exceeded the retry cap.
+
+        The pipeline router calls this *before* allowing a backward edge.  If
+        it returns ``True``, the pipeline must not record another attempt and
+        must enter the terminal partial-verdict state instead.
+
+        Parameters
+        ----------
+        from_stage:
+            The stage that would be requesting recalibration.
+        to_stage:
+            The upstream stage that would be re-invoked.
+
+        Returns
+        -------
+        bool
+            ``True``  — cap reached; no further loops permitted for this pair.
+            ``False`` — cap not yet reached; another attempt is allowed.
+        """
+        _validate_stage_pair(from_stage, to_stage)
+        key = (from_stage, to_stage)
+        return self._counts.get(key, 0) >= self._max_retries
+
+    # ------------------------------------------------------------------
+    # Introspection helpers
+    # ------------------------------------------------------------------
+
+    def iteration_count(self, from_stage: str, to_stage: str) -> int:
+        """Return the current iteration count for a stage pair (0 if never recorded).
+
+        Parameters
+        ----------
+        from_stage:
+            The requesting stage.
+        to_stage:
+            The upstream target stage.
+
+        Returns
+        -------
+        int
+            Number of times :meth:`record` has been called for this pair.
+            Returns ``0`` if the pair has never looped.
+        """
+        _validate_stage_pair(from_stage, to_stage)
+        return self._counts.get((from_stage, to_stage), 0)
+
+    def all_counts(self) -> dict[tuple[str, str], int]:
+        """Return a copy of the full counter dict for audit/logging purposes.
+
+        Returns
+        -------
+        dict[tuple[str, str], int]
+            A shallow copy mapping ``(from_stage, to_stage)`` → iteration count.
+            Pairs that have never been recorded are absent (count is implicitly 0).
+        """
+        return dict(self._counts)
+
+    @property
+    def max_retries(self) -> int:
+        """The retry cap this guard was configured with (read-only)."""
+        return self._max_retries
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+def _validate_stage_pair(from_stage: str, to_stage: str) -> None:
+    """Raise ``ValueError`` for invalid stage pair arguments.
+
+    Used internally by :class:`LoopGuard` methods.
+    """
+    if not from_stage or not from_stage.strip():
+        raise ValueError("from_stage must be a non-empty string.")
+    if not to_stage or not to_stage.strip():
+        raise ValueError("to_stage must be a non-empty string.")
+    if from_stage == to_stage:
+        raise ValueError(
+            f"from_stage and to_stage must differ; both are '{from_stage}'."
+        )

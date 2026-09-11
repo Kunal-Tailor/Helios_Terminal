@@ -152,11 +152,11 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 Context: Phases 1–7 gave every stage a **verification** gate (is this claim grounded in its source). This phase adds a second, distinct gate — a **sufficiency** check (did the upstream stage give me enough to work with at all) — and the backward routing that fires when it fails. A stage that detects insufficient input doesn't regenerate blindly; it emits a `RecalibrationRequest` naming exactly what's missing and which upstream stage should re-run. This is the mechanism that replaces "simple stepwise" with "stage-gated conditional graph" in the synopsis language.
 
-- [ ] 7.5.1 — `backend/app/verification/recalibration.py` — `RecalibrationRequest` data structure: `from_stage`, `to_stage`, `reason` (`insufficient` | `unverified`), `gap_description`, `iteration_count`; unit test for construction/serialization
+- [x] 7.5.1 — `backend/app/verification/recalibration.py` — `RecalibrationRequest` data structure: `from_stage`, `to_stage`, `reason` (`insufficient` | `unverified`), `gap_description`, `iteration_count`; unit test for construction/serialization
   Commit: `Update - 7.5.1 - RecalibrationRequest data structure`
-- [ ] 7.5.2 — Sufficiency-check function (in `recalibration.py`, reusing `verifier.py`'s pattern) — per-stage threshold checks: e.g. Stack-Mapping has 0–1 surviving layers, Scenario-Generation has <2 viable options after feasibility filtering; unit tests with a known-sufficient and known-insufficient case per stage
+- [x] 7.5.2 — Sufficiency-check function (in `recalibration.py`, reusing `verifier.py`'s pattern) — per-stage threshold checks: e.g. Stack-Mapping has 0–1 surviving layers, Scenario-Generation has <2 viable options after feasibility filtering; unit tests with a known-sufficient and known-insufficient case per stage
   Commit: `Update - 7.5.2 - sufficiency-check function per stage`
-- [ ] 7.5.3 — Loop-guard: per-`(from_stage, to_stage)` iteration counter carried in pipeline state, capped at 2 retries; unit test confirming the cap is enforced and does not reset across unrelated stage pairs
+- [x] 7.5.3 — Loop-guard: per-`(from_stage, to_stage)` iteration counter carried in pipeline state, capped at 2 retries; unit test confirming the cap is enforced and does not reset across unrelated stage pairs
   Commit: `Update - 7.5.3 - loop-guard iteration tracking`
 - [ ] 7.5.4 — Context accumulation helper — recalibration appends targeted new data to the existing context object rather than discarding/replacing it; unit test confirming prior context survives a re-ingestion pass
   Commit: `Update - 7.5.4 - context accumulation on re-ingestion`
