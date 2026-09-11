@@ -11,7 +11,8 @@ different questions and fire independently.
 Phase 7.5.1 — RecalibrationRequest data structure.
 Phase 7.5.2 — Sufficiency-check functions (one per pipeline stage).
 Phase 7.5.3 — LoopGuard: per-(from_stage, to_stage) iteration counter, capped at 2 retries.
-Context accumulation is added in task 7.5.4.
+Phase 7.5.4 — accumulate_ingestion_context: merge re-ingestion output into existing context
+               by appending (not replacing), so prior context survives recalibration.
 
 Public API
 -----------
@@ -23,6 +24,9 @@ Public API
     LoopGuard             — Stateful per-pipeline-run counter that tracks how many
                             times each (from_stage, to_stage) pair has looped back
                             and enforces a configurable retry cap (default: 2).
+    accumulate_ingestion_context(existing, new_partial) -> IngestionContext
+                          — Merge a targeted re-ingestion result into an existing
+                            IngestionContext without discarding the original data.
     check_sufficiency_stack_mapping(stack_scope)         -> SufficiencyResult
     check_sufficiency_scenario_generation(scenario_set)  -> SufficiencyResult
     check_sufficiency_outcome_prediction(outcome_set)    -> SufficiencyResult
@@ -52,12 +56,13 @@ from typing import TYPE_CHECKING, Literal
 if TYPE_CHECKING:
     # Imported only for type annotations; avoids circular imports at runtime since
     # agent modules may eventually import from the verification layer.
-    from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
     from app.agents.stack_mapping.stack_mapping_agent import StackScope
     from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
     from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeSet
     from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DiagnosisSet
     from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
+
+from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 
 
 # ---------------------------------------------------------------------------
@@ -749,3 +754,87 @@ def _validate_stage_pair(from_stage: str, to_stage: str) -> None:
         raise ValueError(
             f"from_stage and to_stage must differ; both are '{from_stage}'."
         )
+
+
+# ---------------------------------------------------------------------------
+# Context Accumulation Helper (Phase 7.5.4)
+# ---------------------------------------------------------------------------
+
+def accumulate_ingestion_context(
+    existing: IngestionContext,
+    new_partial: IngestionContext,
+) -> IngestionContext:
+    """Merge a targeted re-ingestion result into an existing :class:`IngestionContext`.
+
+    Recalibration does not discard or overwrite prior context. Instead, new
+    findings are accumulated on top of the original context:
+      - ``context_summary``: original summary preserved, appended with new summary
+        (or preserved as-is if new summary is empty).
+      - ``key_facts``: new unique facts appended to the existing list (order preserved).
+      - ``sources``: new unique source URLs appended to the existing list (order preserved).
+      - ``raw_retrieved_content``: concatenated with a double newline delimiter.
+      - ``entity``, ``capability``, ``options``: preserved from ``existing``.
+
+    Parameters
+    ----------
+    existing:
+        The :class:`~app.agents.ingestion.sub_agents.context_synthesis_sub_agent.IngestionContext`
+        already accumulated from previous passes.
+    new_partial:
+        The new :class:`~app.agents.ingestion.sub_agents.context_synthesis_sub_agent.IngestionContext`
+        produced by the scoped re-ingestion pass.
+
+    Returns
+    -------
+    IngestionContext
+        A new combined :class:`IngestionContext` with both existing and new data.
+    """
+    # Accumulate context_summary
+    if existing.context_summary and new_partial.context_summary:
+        combined_summary = f"{existing.context_summary}\n\n[Recalibration Update]\n{new_partial.context_summary}"
+    elif new_partial.context_summary:
+        combined_summary = new_partial.context_summary
+    else:
+        combined_summary = existing.context_summary
+
+    # Accumulate key_facts preserving order and deduplicating
+    seen_facts = set(existing.key_facts)
+    combined_key_facts = list(existing.key_facts)
+    for fact in new_partial.key_facts:
+        if fact not in seen_facts:
+            seen_facts.add(fact)
+            combined_key_facts.append(fact)
+
+    # Accumulate sources preserving order and deduplicating
+    seen_sources = set(existing.sources)
+    combined_sources = list(existing.sources)
+    for src in new_partial.sources:
+        if src not in seen_sources:
+            seen_sources.add(src)
+            combined_sources.append(src)
+
+    # Accumulate raw_retrieved_content
+    if existing.raw_retrieved_content and new_partial.raw_retrieved_content:
+        combined_raw = f"{existing.raw_retrieved_content}\n\n{new_partial.raw_retrieved_content}"
+    elif new_partial.raw_retrieved_content:
+        combined_raw = new_partial.raw_retrieved_content
+    else:
+        combined_raw = existing.raw_retrieved_content
+
+    # Options: union preserving order from existing then new_partial
+    seen_opts = set(existing.options)
+    combined_options = list(existing.options)
+    for opt in new_partial.options:
+        if opt not in seen_opts:
+            seen_opts.add(opt)
+            combined_options.append(opt)
+
+    return IngestionContext(
+        entity=existing.entity,
+        capability=existing.capability,
+        options=combined_options,
+        context_summary=combined_summary,
+        key_facts=combined_key_facts,
+        sources=combined_sources,
+        raw_retrieved_content=combined_raw,
+    )

@@ -158,7 +158,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.2 - sufficiency-check function per stage`
 - [x] 7.5.3 — Loop-guard: per-`(from_stage, to_stage)` iteration counter carried in pipeline state, capped at 2 retries; unit test confirming the cap is enforced and does not reset across unrelated stage pairs
   Commit: `Update - 7.5.3 - loop-guard iteration tracking`
-- [ ] 7.5.4 — Context accumulation helper — recalibration appends targeted new data to the existing context object rather than discarding/replacing it; unit test confirming prior context survives a re-ingestion pass
+- [x] 7.5.4 — Context accumulation helper — recalibration appends targeted new data to the existing context object rather than discarding/replacing it; unit test confirming prior context survives a re-ingestion pass
   Commit: `Update - 7.5.4 - context accumulation on re-ingestion`
 - [ ] 7.5.5 — Wire Stack-Mapping → Ingestion fallback in `pipeline/graph.py`: on insufficient layer mapping, re-invoke Ingestion scoped to the `gap_description` only; integration test (mocked LLM) confirming the loop-back fires and the pipeline continues after
   Commit: `Update - 7.5.5 - stack-mapping to ingestion fallback wiring`
