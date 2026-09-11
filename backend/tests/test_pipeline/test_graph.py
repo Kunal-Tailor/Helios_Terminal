@@ -1296,3 +1296,305 @@ def test_pipeline_dependency_diagnosis_fallback_invokes_timeline_projection():
         assert len(res.diagnosis_set.diagnoses) == 1
         assert len(res.diagnosis_set.diagnoses[0].dependencies) == 1
         assert res.diagnosis_set.diagnoses[0].dependencies[0].dependency_name == "GPU Vendor"
+
+
+def test_pipeline_orchestrator_fallback_path_scoped_dependency_diagnosis():
+    """Integration test (7.5.9): when cross_path_comparison_sub_agent finds asymmetric completeness
+    (one path has lock_in_count=0 while another has lock_in_count>0), re-run Dependency-Diagnosis
+    scoped to only the deficient path, merge results, re-run Orchestrator, and confirm the
+    non-deficient path's diagnosis was NOT re-run (i.e. remains untouched from Stage 5)."""
+    context = IngestionContext(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        options=["cloud SaaS", "open-source on-prem"],
+        context_summary=(
+            "Retail Corp demand forecasting AI. "
+            "Fact: Seasonal peak load requires elastic compute. "
+            "Fact: Data residency within EU mandated."
+        ),
+        key_facts=[
+            "Fact: Seasonal peak load requires elastic compute.",
+            "Fact: Data residency within EU mandated.",
+        ],
+        sources=["https://example.com/retail1"],
+        raw_retrieved_content=(
+            "Retail Corp demand forecasting AI. "
+            "Fact: Seasonal peak load requires elastic compute. "
+            "Fact: Data residency within EU mandated."
+        ),
+    )
+
+    scope = StackScope(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        layers=[
+            StackLayer(name="Compute Layer", rationale="Elastic compute for peak load", evidence="Fact: Seasonal peak load requires elastic compute."),
+            StackLayer(name="Data Sovereignty Layer", rationale="EU data residency", evidence="Fact: Data residency within EU mandated."),
+            StackLayer(name="ML Model Layer", rationale="Forecasting model weights", evidence="Fact: Seasonal peak load requires elastic compute."),
+        ],
+    )
+
+    raw_scenarios = ScenarioSet(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        scenarios=[
+            Scenario(
+                name="Cloud SaaS",
+                option_name="cloud SaaS",
+                description="Managed cloud SaaS forecasting with EU data-residency controls",
+                grounded_in="Data Sovereignty Layer: EU data residency Fact: Data residency within EU mandated.",
+            ),
+            Scenario(
+                name="Open-Source On-Prem",
+                option_name="open-source on-prem",
+                description="Self-hosted open-source forecasting on own GPU cluster",
+                grounded_in="Compute Layer: Elastic compute for peak load Fact: Seasonal peak load requires elastic compute.",
+            ),
+        ],
+    )
+
+    mock_outcomes = OutcomeSet(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Cloud SaaS",
+                trajectory=Trajectory(
+                    scenario_name="Cloud SaaS",
+                    summary="Cloud SaaS trajectory with vendor-managed EU residency controls",
+                    grounded_in="Cloud SaaS: Managed cloud SaaS forecasting with EU data-residency controls",
+                ),
+                risk_factors=[RiskFactor(scenario_name="Cloud SaaS", factor_name="Vendor Lock-In", description="Dependence on SaaS provider APIs")],
+            ),
+            OutcomeProjection(
+                scenario_name="Open-Source On-Prem",
+                trajectory=Trajectory(
+                    scenario_name="Open-Source On-Prem",
+                    summary="Self-hosted trajectory with full infrastructure ownership",
+                    grounded_in="Open-Source On-Prem: Self-hosted open-source forecasting on own GPU cluster",
+                ),
+                risk_factors=[RiskFactor(scenario_name="Open-Source On-Prem", factor_name="Ops Burden", description="High operational overhead")],
+            ),
+        ],
+    )
+
+    # Stage 5 (initial full run): Cloud SaaS has good diagnosis; Open-Source has empty deps (deficient)
+    initial_diagnoses = DiagnosisSet(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Cloud SaaS",
+                dependencies=[
+                    LockInDependency(
+                        scenario_name="Cloud SaaS",
+                        dependency_name="SaaS Provider",
+                        lock_in_type="Vendor Lock-In",
+                        description="Proprietary SaaS APIs with no open standard",
+                    )
+                ],
+                failure_modes=[
+                    FailureMode(
+                        scenario_name="Cloud SaaS",
+                        dependency_name="SaaS Provider",
+                        failure_mode_title="Provider Exit",
+                        what_breaks="Forecasting pipeline",
+                        trigger_condition="SaaS vendor shutdown",
+                        time_horizon="2 years",
+                        grounded_in="Cloud SaaS: Cloud SaaS trajectory with vendor-managed EU residency controls",
+                    )
+                ],
+                severity_scores=[
+                    DependencySeverityScore(
+                        scenario_name="Cloud SaaS",
+                        dependency_name="SaaS Provider",
+                        severity_score=7.0,
+                        urgency_score=5.5,
+                        risk_level="Medium",
+                        rationale="Mitigable with data export contracts",
+                    )
+                ],
+            ),
+            DependencyDiagnosis(
+                scenario_name="Open-Source On-Prem",
+                dependencies=[],  # No dependencies found initially -> deficient
+                failure_modes=[],
+            ),
+        ],
+    )
+
+    # Path-scoped re-run result for deficient path "Open-Source On-Prem"
+    enriched_open_source_diag = DiagnosisSet(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Open-Source On-Prem",
+                dependencies=[
+                    LockInDependency(
+                        scenario_name="Open-Source On-Prem",
+                        dependency_name="GPU Hardware",
+                        lock_in_type="Hardware Lock-In",
+                        description="Tied to specific GPU vendor for ML acceleration",
+                    )
+                ],
+                failure_modes=[
+                    FailureMode(
+                        scenario_name="Open-Source On-Prem",
+                        dependency_name="GPU Hardware",
+                        failure_mode_title="Hardware EOL",
+                        what_breaks="Model training and inference",
+                        trigger_condition="GPU vendor discontinues line",
+                        time_horizon="3 years",
+                        grounded_in="Open-Source On-Prem: Self-hosted trajectory with full infrastructure ownership",
+                    )
+                ],
+            ),
+        ],
+    )
+
+    # 1st Orchestrator call: asymmetric comparison — Cloud SaaS has lock_in_count=1, Open-Source has 0
+    asymmetric_verdict = OrchestratorVerdict(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        recommended_path="Cloud SaaS",
+        verdict_summary="Asymmetric analysis: Cloud SaaS fully diagnosed; Open-Source path underdiagnosed.",
+        key_recommendations=["Negotiate SaaS exit clause"],
+        cross_path_comparison=CrossPathComparison(
+            comparative_narrative="Cloud SaaS has concrete lock-in data; Open-Source path has none — asymmetric.",
+            path_comparisons=[
+                PathComparison(
+                    scenario_name="Cloud SaaS",
+                    lock_in_count=1,
+                    max_severity_score=7.0,
+                    key_tradeoffs=["Vendor API lock-in vs managed operations"],
+                    path_summary="Well-diagnosed with medium-risk SaaS dependency.",
+                ),
+                PathComparison(
+                    scenario_name="Open-Source On-Prem",
+                    lock_in_count=0,  # Deficient: no lock-ins identified yet
+                    max_severity_score=0.0,
+                    key_tradeoffs=[],
+                    path_summary="Under-diagnosed — no lock-in data available for comparison.",
+                ),
+            ],
+        ),
+        explanation_trail=ExplanationTrail(
+            summary="Asymmetric analysis — Open-Source path requires further diagnosis.",
+            steps=[
+                AuditStep(
+                    stage="diagnosis",
+                    claim="Cloud SaaS SaaS Provider",
+                    evidence="Provider Exit",
+                    grounded_in="Cloud SaaS SaaS Provider: Provider Exit Forecasting pipeline SaaS vendor shutdown 2 years",
+                )
+            ],
+        ),
+    )
+
+    # 2nd Orchestrator call: balanced comparison — both paths now have lock-in data
+    balanced_verdict = OrchestratorVerdict(
+        entity="Retail Corp",
+        capability="demand forecasting AI",
+        recommended_path="Cloud SaaS",
+        verdict_summary="Cloud SaaS recommended for managed EU compliance with acceptable lock-in risk.",
+        key_recommendations=["Negotiate SaaS exit clause", "Maintain open-source fallback plan"],
+        cross_path_comparison=CrossPathComparison(
+            comparative_narrative="Both paths now fully diagnosed. Cloud SaaS offers managed compliance; Open-Source has hardware lock-in.",
+            path_comparisons=[
+                PathComparison(
+                    scenario_name="Cloud SaaS",
+                    lock_in_count=1,
+                    max_severity_score=7.0,
+                    key_tradeoffs=["Vendor API lock-in vs managed operations"],
+                    path_summary="Medium-risk with mitigable SaaS dependency.",
+                ),
+                PathComparison(
+                    scenario_name="Open-Source On-Prem",
+                    lock_in_count=1,
+                    max_severity_score=6.5,
+                    key_tradeoffs=["Hardware lock-in vs full operational control"],
+                    path_summary="Hardware lock-in is manageable with multi-vendor procurement.",
+                ),
+            ],
+        ),
+        explanation_trail=ExplanationTrail(
+            summary="Balanced cross-path analysis complete.",
+            steps=[
+                AuditStep(
+                    stage="diagnosis",
+                    claim="Cloud SaaS SaaS Provider",
+                    evidence="Provider Exit",
+                    grounded_in="Cloud SaaS SaaS Provider: Provider Exit Forecasting pipeline SaaS vendor shutdown 2 years",
+                ),
+                AuditStep(
+                    stage="diagnosis",
+                    claim="Open-Source On-Prem GPU Hardware",
+                    evidence="Hardware EOL",
+                    grounded_in="Open-Source On-Prem GPU Hardware: Hardware EOL Model training and inference GPU vendor discontinues line 3 years",
+                ),
+            ],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=raw_scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=mock_outcomes), \
+         patch(
+             "app.agents.dependency_diagnosis.dependency_diagnosis_agent.run",
+             side_effect=[initial_diagnoses, enriched_open_source_diag],
+         ) as mock_diag_run, \
+         patch(
+             "app.agents.orchestrator.orchestrator_agent.run",
+             side_effect=[asymmetric_verdict, balanced_verdict],
+         ) as mock_orchestrator_run:
+
+        res = run_pipeline(
+            entity="Retail Corp",
+            capability="demand forecasting AI",
+            options=["cloud SaaS", "open-source on-prem"],
+        )
+
+        # Pipeline completed all the way to a final verdict
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "Cloud SaaS"
+        assert res.verification_passed is True
+
+        # dependency_diagnosis_agent was called twice:
+        # 1st = full Stage 5 run (both paths), 2nd = path-scoped run for "Open-Source On-Prem" only
+        assert mock_diag_run.call_count == 2
+
+        # Verify the 2nd dependency_diagnosis call received only the deficient path's outcomes
+        second_diag_call_outcome_set = mock_diag_run.call_args_list[1].kwargs["outcome_set"]
+        assert len(second_diag_call_outcome_set.outcomes) == 1
+        assert second_diag_call_outcome_set.outcomes[0].scenario_name == "Open-Source On-Prem"
+
+        # Orchestrator was called twice: 1st with asymmetric data, 2nd after enrichment
+        assert mock_orchestrator_run.call_count == 2
+
+        # Verify the 2nd Orchestrator call received the enriched DiagnosisSet (both paths diagnosed)
+        second_orch_call_diag_set = mock_orchestrator_run.call_args_list[1].kwargs["diagnosis_set"]
+        diag_names = {d.scenario_name for d in second_orch_call_diag_set.diagnoses}
+        assert "Cloud SaaS" in diag_names
+        assert "Open-Source On-Prem" in diag_names
+
+        # Cloud SaaS diagnosis was NOT re-run — confirm it kept its original dependencies
+        cloud_saas_diag = next(d for d in second_orch_call_diag_set.diagnoses if d.scenario_name == "Cloud SaaS")
+        assert len(cloud_saas_diag.dependencies) == 1
+        assert cloud_saas_diag.dependencies[0].dependency_name == "SaaS Provider"
+
+        # Open-Source On-Prem diagnosis was enriched by the scoped re-run
+        open_source_diag = next(d for d in second_orch_call_diag_set.diagnoses if d.scenario_name == "Open-Source On-Prem")
+        assert len(open_source_diag.dependencies) == 1
+        assert open_source_diag.dependencies[0].dependency_name == "GPU Hardware"
+
+        # Recalibration trail recorded the orchestrator -> dependency_diagnosis loop-back
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "orchestrator"
+        assert req.to_stage == "dependency_diagnosis"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "cross_path_comparison_sub_agent" in req.gap_description
+        assert "Open-Source On-Prem" in req.gap_description

@@ -68,6 +68,7 @@ from app.verification.recalibration import (
     RecalibrationRequest,
     accumulate_ingestion_context,
     check_sufficiency_dependency_diagnosis,
+    check_sufficiency_orchestrator,
     check_sufficiency_outcome_prediction,
     check_sufficiency_scenario_generation,
     check_sufficiency_stack_mapping,
@@ -670,53 +671,128 @@ def run_pipeline(
     # -----------------------------------------------------------------------
     # Stage 6: Orchestrator
     # -----------------------------------------------------------------------
-    try:
-        sources = result.ingestion_context.sources if result.ingestion_context else None
-        result.verdict = orchestrator_agent.run(
-            diagnosis_set=result.diagnosis_set,
-            sources=sources,
-        )
-        if not result.verdict or (not result.verdict.recommended_path and not result.verdict.verdict_summary):
+    while True:
+        try:
+            sources = result.ingestion_context.sources if result.ingestion_context else None
+            result.verdict = orchestrator_agent.run(
+                diagnosis_set=result.diagnosis_set,
+                sources=sources,
+            )
+            if not result.verdict or (not result.verdict.recommended_path and not result.verdict.verdict_summary):
+                result.verification_passed = False
+                result.verification_failed_stage = "orchestrator"
+                reason = "stage did not execute: orchestrator returned empty verdict"
+                result.verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        reason=reason,
+                        claim="Stage execution: orchestrator",
+                        agent_stage="orchestrator",
+                    )
+                )
+                logger.warning("Pipeline halted at stage 'orchestrator' due to empty output.")
+                return result
+
+            _register_orchestrator_claims(result.verdict, result.diagnosis_set, source_store)
+            vr_6 = verify_stage(source_store, "orchestrator")
+            result.verification_results.extend(vr_6)
+            if halt_on_verification_failure and any(not v.passed for v in vr_6):
+                result.verification_passed = False
+                result.verification_failed_stage = "orchestrator"
+                logger.warning("Pipeline halted at stage 'orchestrator' due to verification failure.")
+                return result
+        except RateLimitError as exc:
+            logger.error("Rate limit error executing stage 'orchestrator': %s", exc, exc_info=True)
+            raise
+        except Exception as exc:
+            logger.error("Error executing stage 'orchestrator': %s", exc, exc_info=True)
             result.verification_passed = False
             result.verification_failed_stage = "orchestrator"
-            reason = "stage did not execute: orchestrator returned empty verdict"
             result.verification_results.append(
                 VerificationResult(
                     passed=False,
                     confidence=0.0,
-                    reason=reason,
+                    reason=f"stage did not execute: {exc}",
                     claim="Stage execution: orchestrator",
                     agent_stage="orchestrator",
                 )
             )
-            logger.warning("Pipeline halted at stage 'orchestrator' due to empty output.")
             return result
 
-        _register_orchestrator_claims(result.verdict, result.diagnosis_set, source_store)
-        vr_6 = verify_stage(source_store, "orchestrator")
-        result.verification_results.extend(vr_6)
-        if halt_on_verification_failure and any(not v.passed for v in vr_6):
-            result.verification_passed = False
-            result.verification_failed_stage = "orchestrator"
-            logger.warning("Pipeline halted at stage 'orchestrator' due to verification failure.")
-            return result
-    except RateLimitError as exc:
-        logger.error("Rate limit error executing stage 'orchestrator': %s", exc, exc_info=True)
-        raise
-    except Exception as exc:
-        logger.error("Error executing stage 'orchestrator': %s", exc, exc_info=True)
-        result.verification_passed = False
-        result.verification_failed_stage = "orchestrator"
-        result.verification_results.append(
-            VerificationResult(
-                passed=False,
-                confidence=0.0,
-                reason=f"stage did not execute: {exc}",
-                claim="Stage execution: orchestrator",
-                agent_stage="orchestrator",
+        # ------------------------------------------------------------------
+        # Asymmetric completeness check: path-scoped Dependency-Diagnosis
+        # fallback for paths with no identified lock-ins while others have them
+        # ------------------------------------------------------------------
+        deficient_paths = _find_deficient_paths(result.verdict)
+        if not deficient_paths:
+            break
+
+        if guard.cap_exceeded("orchestrator", "dependency_diagnosis"):
+            logger.warning(
+                "LoopGuard cap exceeded for orchestrator → dependency_diagnosis; "
+                "proceeding with last verdict."
+            )
+            break
+
+        guard.record("orchestrator", "dependency_diagnosis")
+        iter_count = guard.iteration_count("orchestrator", "dependency_diagnosis")
+        gap = (
+            f"cross_path_comparison_sub_agent found asymmetric completeness: "
+            f"path(s) {deficient_paths!r} have no identified lock-ins while other paths do. "
+            f"Re-running Dependency-Diagnosis scoped to deficient path(s) only. "
+            f"[Iteration {iter_count}]"
+        )
+        result.recalibration_trail.append(
+            RecalibrationRequest(
+                from_stage="orchestrator",
+                to_stage="dependency_diagnosis",
+                reason="insufficient",
+                gap_description=gap,
+                iteration_count=iter_count,
             )
         )
-        return result
+        logger.info("Stage 6 recalibration (%d): %s", iter_count, gap)
+
+        # Build a scoped OutcomeSet containing only the deficient paths' OutcomeProjections
+        deficient_set = set(p.lower() for p in deficient_paths)
+        scoped_outcomes = [
+            proj
+            for proj in (result.outcome_set.outcomes if result.outcome_set else [])
+            if proj.scenario_name.lower() in deficient_set
+        ]
+        scoped_outcome_set = OutcomeSet(
+            entity=result.entity,
+            capability=result.capability,
+            outcomes=scoped_outcomes,
+        )
+
+        # Re-run Dependency-Diagnosis for only the deficient paths
+        new_diag_set = dependency_diagnosis_agent.run(outcome_set=scoped_outcome_set)
+
+        # Merge: replace deficient path diagnoses in result.diagnosis_set; keep the rest untouched
+        new_diag_map = {d.scenario_name.lower(): d for d in new_diag_set.diagnoses}
+        merged_diagnoses = [
+            new_diag_map.get(d.scenario_name.lower(), d)
+            for d in result.diagnosis_set.diagnoses
+        ]
+        # Also add any new diagnoses for paths that had no prior entry
+        existing_names = {d.scenario_name.lower() for d in result.diagnosis_set.diagnoses}
+        for name_lower, diag in new_diag_map.items():
+            if name_lower not in existing_names:
+                merged_diagnoses.append(diag)
+
+        result.diagnosis_set = DiagnosisSet(
+            entity=result.diagnosis_set.entity,
+            capability=result.diagnosis_set.capability,
+            diagnoses=merged_diagnoses,
+        )
+
+        # Re-register dependency-diagnosis claims with the enriched DiagnosisSet
+        _register_dependency_diagnosis_claims(result.diagnosis_set, result.outcome_set, source_store)
+
+        # Loop back to re-run Orchestrator with enriched DiagnosisSet
+        continue
 
     if any(not v.passed for v in result.verification_results):
         result.verification_passed = False
@@ -755,6 +831,40 @@ def _decide_scenario_fallback_target(
     if layer_count <= 2:
         return "stack_mapping"
     return "ingestion"
+
+
+def _find_deficient_paths(verdict: OrchestratorVerdict | None) -> list[str]:
+    """Return path names that show asymmetric completeness in the cross-path comparison.
+
+    A path is considered "deficient" if its ``PathComparison.lock_in_count == 0``
+    (no identified lock-ins) while **at least one other** path has a non-zero
+    ``lock_in_count``.  This indicates the Orchestrator received incomplete
+    Dependency-Diagnosis data for that path and its cross-path comparison is
+    therefore skewed.
+
+    Parameters
+    ----------
+    verdict:
+        The :class:`~app.agents.orchestrator.orchestrator_agent.OrchestratorVerdict`
+        returned by the Orchestrator.
+
+    Returns
+    -------
+    list[str]
+        Names of deficient paths, or an empty list if all paths have comparable
+        completeness or if no cross-path comparison data is available.
+    """
+    if not verdict or not verdict.cross_path_comparison:
+        return []
+    path_comparisons = verdict.cross_path_comparison.path_comparisons
+    if len(path_comparisons) < 2:
+        # Cannot determine asymmetry with a single path
+        return []
+    any_with_lockins = any(pc.lock_in_count > 0 for pc in path_comparisons)
+    if not any_with_lockins:
+        # All paths have no lock-ins — symmetrically empty, not asymmetric
+        return []
+    return [pc.scenario_name for pc in path_comparisons if pc.lock_in_count == 0]
 
 
 # ---------------------------------------------------------------------------
