@@ -174,7 +174,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.10 - partial-verdict terminal state on loop-guard exceeded`
 - [x] 7.5.11 — Extend API response schema (`api/schemas/`) to include a `recalibration_trail`: which stages looped back, why, and how many iterations — supports FR-4/FR-5 explainability; update `POST /decisions` integration test to assert the trail is present and empty for a clean run
   Commit: `Update - 7.5.11 - recalibration trail in API response`
-- [ ] 7.5.12 — Full end-to-end verification pass: one real (non-mocked) decision brief run through the pipeline confirming at least one deliberate insufficient-input scenario triggers a fallback, resolves within the retry cap, and produces a fully populated verdict
+- [x] 7.5.12 — Full end-to-end verification pass: one real (non-mocked) decision brief run through the pipeline confirming at least one deliberate insufficient-input scenario triggers a fallback, resolves within the retry cap, and produces a fully populated verdict
   Commit: `Update - 7.5.12 - end-to-end recalibration verification pass`
 
 **Checkpoint:** Pipeline is a conditional, stage-gated graph — not a straight sequence — with bounded, targeted backward recalibration and a documented terminal state. This is the checkpoint to demo to the guide before frontend work resumes.

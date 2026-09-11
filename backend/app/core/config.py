@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
 
+    # --- Gemini (OpenAI-compatible API via Google AI Studio) ---
+    gemini_api_key: str = ""
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta/openai/"
+
     # Default model identifier — pinned to model in use.
     # Override via DEFAULT_MODEL env var to swap models without touching code.
     default_model: str = "deepseek-chat"
@@ -58,13 +62,17 @@ class Settings(BaseSettings):
     @property
     def llm_api_key(self) -> str:
         provider = (self.llm_provider or "").lower()
+        if provider == "gemini":
+            return self.gemini_api_key or self.openrouter_api_key or self.deepseek_api_key
         if provider == "openrouter":
             return self.openrouter_api_key or self.deepseek_api_key
-        return self.deepseek_api_key or self.openrouter_api_key
+        return self.deepseek_api_key or self.openrouter_api_key or self.gemini_api_key
 
     @property
     def llm_base_url(self) -> str:
         provider = (self.llm_provider or "").lower()
+        if provider == "gemini":
+            return self.gemini_base_url
         if provider == "openrouter":
             return self.openrouter_base_url
         return self.deepseek_base_url
