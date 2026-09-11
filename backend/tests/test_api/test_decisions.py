@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis, DiagnosisSet
 from app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent import FailureMode
+from app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent import LockInDependency
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
 from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison, PathComparison
@@ -153,6 +154,14 @@ def test_post_decisions_endpoint_full_pipeline_flow():
         diagnoses=[
             DependencyDiagnosis(
                 scenario_name="Build",
+                dependencies=[
+                    LockInDependency(
+                        scenario_name="Build",
+                        dependency_name="Vendor",
+                        lock_in_type="Vendor",
+                        description="Speech Recognition vendor lock-in",
+                    )
+                ],
                 failure_modes=[
                     FailureMode(
                         scenario_name="Build",

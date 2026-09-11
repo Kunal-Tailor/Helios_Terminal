@@ -278,11 +278,22 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
         ],
     )
 
+    sample_diagnoses = DiagnosisSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="S1",
+                dependencies=[LockInDependency(scenario_name="S1", dependency_name="Dep1", lock_in_type="Vendor", description="A vendor dep")],
+            )
+        ],
+    )
+
     with patch("app.agents.ingestion.ingestion_agent.run", return_value=bad_context), \
          patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=sample_scope) as mock_stack, \
          patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=sample_scenarios) as mock_scenarios, \
          patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=sample_outcomes), \
-         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run"), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=sample_diagnoses), \
          patch("app.agents.orchestrator.orchestrator_agent.run"):
 
         res = run_pipeline(
@@ -308,11 +319,40 @@ def test_pipeline_run_alias():
             StackLayer(name="L2", rationale="R2", evidence="E2"),
         ],
     )
+    mock_scenarios = ScenarioSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        scenarios=[
+            Scenario(name="S1", option_name="o1", description="d1"),
+            Scenario(name="S2", option_name="o2", description="d2"),
+        ],
+    )
+    mock_outcomes = OutcomeSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="S1",
+                trajectory=Trajectory(scenario_name="S1", summary="traj"),
+                risk_factors=[RiskFactor(scenario_name="S1", factor_name="f", description="d")],
+            )
+        ],
+    )
+    mock_diagnoses = DiagnosisSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="S1",
+                dependencies=[LockInDependency(scenario_name="S1", dependency_name="D1", lock_in_type="Vendor", description="dep")],
+            )
+        ],
+    )
     with patch("app.agents.ingestion.ingestion_agent.run") as mock_ingest, \
          patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=mock_scope), \
-         patch("app.agents.scenario_generation.scenario_generation_agent.run"), \
-         patch("app.agents.outcome_prediction.outcome_prediction_agent.run"), \
-         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run"), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=mock_scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=mock_outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=mock_diagnoses), \
          patch("app.agents.orchestrator.orchestrator_agent.run"):
 
         res = run(entity="Test Entity", capability="Test Cap")
@@ -1016,3 +1056,243 @@ def test_pipeline_outcome_prediction_fallback_invokes_scenario_refinement():
         assert req.iteration_count == 1
         assert "scenario_refinement_sub_agent" in req.gap_description
 
+
+def test_pipeline_dependency_diagnosis_fallback_invokes_timeline_projection():
+    """Integration test (7.5.8): on generic/non-specific Dependency-Diagnosis output (all diagnoses
+    have empty dependencies), invoke timeline_projection_sub_agent to enrich OutcomeProjection
+    timelines, then re-run Dependency-Diagnosis until it produces concrete lock-in dependencies."""
+    context = IngestionContext(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        options=["on-prem GPU cluster", "cloud API"],
+        context_summary=(
+            "Defense Agency satellite imagery AI. "
+            "Fact: Real-time imagery inference at 1fps. "
+            "Fact: Data sovereignty mandated."
+        ),
+        key_facts=[
+            "Fact: Real-time imagery inference at 1fps.",
+            "Fact: Data sovereignty mandated.",
+        ],
+        sources=["https://example.com/def1"],
+        raw_retrieved_content=(
+            "Defense Agency satellite imagery AI. "
+            "Fact: Real-time imagery inference at 1fps. "
+            "Fact: Data sovereignty mandated."
+        ),
+    )
+
+    scope = StackScope(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        layers=[
+            StackLayer(name="Inference Layer", rationale="GPU cluster", evidence="Fact: Real-time imagery inference at 1fps."),
+            StackLayer(name="Data Sovereignty Layer", rationale="On-prem data store", evidence="Fact: Data sovereignty mandated."),
+            StackLayer(name="Model Weights Layer", rationale="Foundation model weights", evidence="Fact: Real-time imagery inference at 1fps."),
+        ],
+    )
+
+    raw_scenarios = ScenarioSet(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        scenarios=[
+            Scenario(
+                name="On-Prem GPU",
+                option_name="on-prem GPU cluster",
+                description="Local GPU cluster inference",
+                grounded_in="Inference Layer: GPU cluster Fact: Real-time imagery inference at 1fps.",
+            ),
+            Scenario(
+                name="Cloud API",
+                option_name="cloud API",
+                description="Cloud inference via secure API",
+                grounded_in="Data Sovereignty Layer: On-prem data store Fact: Data sovereignty mandated.",
+            ),
+        ],
+    )
+
+    sufficient_outcomes = OutcomeSet(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="On-Prem GPU",
+                trajectory=Trajectory(
+                    scenario_name="On-Prem GPU",
+                    summary="Local inference trajectory with GPU cluster procurement",
+                    grounded_in="On-Prem GPU: Local GPU cluster inference",
+                ),
+                risk_factors=[
+                    RiskFactor(
+                        scenario_name="On-Prem GPU",
+                        factor_name="Hardware Lock-In",
+                        description="Dependency on specific GPU vendor",
+                    )
+                ],
+            ),
+            OutcomeProjection(
+                scenario_name="Cloud API",
+                trajectory=Trajectory(
+                    scenario_name="Cloud API",
+                    summary="Cloud API trajectory with sovereignty controls",
+                    grounded_in="Cloud API: Cloud inference via secure API",
+                ),
+                risk_factors=[
+                    RiskFactor(
+                        scenario_name="Cloud API",
+                        factor_name="Vendor Dependency",
+                        description="Reliance on cloud provider uptime",
+                    )
+                ],
+            ),
+        ],
+    )
+
+    # Timeline projections returned by timeline_projection_sub_agent
+    mock_timeline_projections = [
+        TimelineProjection(
+            scenario_name="On-Prem GPU",
+            short_term="Hardware procurement and rack installation",
+            medium_term="GPU cluster integration and model deployment",
+            long_term="Steady-state GPU cluster operations with model versioning",
+            milestones=["Vendor RFP issued", "Cluster delivered", "Model deployed at 1fps"],
+        ),
+        TimelineProjection(
+            scenario_name="Cloud API",
+            short_term="API contract and onboarding",
+            medium_term="Sovereign data pipeline integration",
+            long_term="Full operational cloud inference with audit trail",
+            milestones=["Contract signed", "Pilot inference running", "Sovereignty audit passed"],
+        ),
+    ]
+
+    # 1st call to dependency_diagnosis: all diagnoses have empty dependencies -> insufficient
+    thin_diagnoses = DiagnosisSet(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="On-Prem GPU",
+                dependencies=[],  # Empty -> triggers fallback
+                failure_modes=[],
+            ),
+            DependencyDiagnosis(
+                scenario_name="Cloud API",
+                dependencies=[],  # Empty -> triggers fallback
+                failure_modes=[],
+            ),
+        ],
+    )
+
+    # 2nd call to dependency_diagnosis: concrete lock-in dependencies -> sufficient
+    sufficient_diagnoses = DiagnosisSet(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="On-Prem GPU",
+                dependencies=[
+                    LockInDependency(
+                        scenario_name="On-Prem GPU",
+                        dependency_name="GPU Vendor",
+                        lock_in_type="Hardware Vendor Lock-In",
+                        description="Proprietary GPU drivers and toolchain",
+                    )
+                ],
+                failure_modes=[
+                    FailureMode(
+                        scenario_name="On-Prem GPU",
+                        dependency_name="GPU Vendor",
+                        failure_mode_title="Driver Discontinuation",
+                        what_breaks="Inference pipeline",
+                        trigger_condition="Vendor EOL",
+                        time_horizon="3 years",
+                        grounded_in="On-Prem GPU: Local inference trajectory with GPU cluster procurement",
+                    )
+                ],
+                severity_scores=[
+                    DependencySeverityScore(
+                        scenario_name="On-Prem GPU",
+                        dependency_name="GPU Vendor",
+                        severity_score=8.0,
+                        urgency_score=6.5,
+                        risk_level="High",
+                        rationale="Critical hardware dependency with limited alternatives",
+                    )
+                ],
+            )
+        ],
+    )
+
+    mock_verdict = OrchestratorVerdict(
+        entity="Defense Agency",
+        capability="satellite imagery AI",
+        recommended_path="On-Prem GPU",
+        verdict_summary="On-Prem GPU cluster recommended for data sovereignty and real-time inference.",
+        key_recommendations=["Negotiate multi-vendor GPU procurement", "Maintain open-source driver fallback"],
+        explanation_trail=ExplanationTrail(
+            summary="Trail",
+            steps=[
+                AuditStep(
+                    stage="diagnosis",
+                    claim="On-Prem GPU GPU Vendor",
+                    evidence="Driver Discontinuation",
+                    grounded_in="On-Prem GPU GPU Vendor: Driver Discontinuation Inference pipeline Vendor EOL 3 years",
+                )
+            ],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=raw_scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=sufficient_outcomes), \
+         patch(
+             "app.agents.outcome_prediction.sub_agents.timeline_projection_sub_agent.run",
+             return_value=mock_timeline_projections,
+         ) as mock_timeline_run, \
+         patch(
+             "app.agents.dependency_diagnosis.dependency_diagnosis_agent.run",
+             side_effect=[thin_diagnoses, sufficient_diagnoses],
+         ) as mock_diag_run, \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=mock_verdict):
+
+        res = run_pipeline(
+            entity="Defense Agency",
+            capability="satellite imagery AI",
+            options=["on-prem GPU cluster", "cloud API"],
+        )
+
+        # Pipeline ran all the way to verdict
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "On-Prem GPU"
+        assert res.verification_passed is True
+
+        # dependency_diagnosis_agent was called twice: initial thin + re-run after timeline enrichment
+        assert mock_diag_run.call_count == 2
+
+        # timeline_projection_sub_agent was invoked exactly once during the fallback
+        assert mock_timeline_run.call_count == 1
+
+        # timeline_projection_sub_agent received the current trajectories and scenarios
+        traj_arg = mock_timeline_run.call_args.kwargs["trajectories"]
+        scenario_arg = mock_timeline_run.call_args.kwargs["scenarios"]
+        assert len(traj_arg) == 2
+        assert traj_arg[0].scenario_name == "On-Prem GPU"
+        assert traj_arg[1].scenario_name == "Cloud API"
+        assert len(scenario_arg) == 2
+
+        # Recalibration trail recorded the dependency_diagnosis -> outcome_prediction loop-back
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "dependency_diagnosis"
+        assert req.to_stage == "outcome_prediction"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "timeline_projection_sub_agent" in req.gap_description
+
+        # The final diagnosis set is the sufficient one (with concrete dependencies)
+        assert res.diagnosis_set is not None
+        assert len(res.diagnosis_set.diagnoses) == 1
+        assert len(res.diagnosis_set.diagnoses[0].dependencies) == 1
+        assert res.diagnosis_set.diagnoses[0].dependencies[0].dependency_name == "GPU Vendor"

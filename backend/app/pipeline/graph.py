@@ -57,6 +57,8 @@ from app.agents.outcome_prediction import outcome_prediction_agent
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeSet
 from app.agents.scenario_generation import scenario_generation_agent
 from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
+from app.agents.outcome_prediction.sub_agents import timeline_projection_sub_agent
+from app.agents.outcome_prediction.sub_agents.timeline_projection_sub_agent import TimelineProjection
 from app.agents.scenario_generation.sub_agents import scenario_refinement_sub_agent
 from app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent import Option
 from app.agents.stack_mapping import stack_mapping_agent
@@ -65,6 +67,7 @@ from app.verification.recalibration import (
     LoopGuard,
     RecalibrationRequest,
     accumulate_ingestion_context,
+    check_sufficiency_dependency_diagnosis,
     check_sufficiency_outcome_prediction,
     check_sufficiency_scenario_generation,
     check_sufficiency_stack_mapping,
@@ -557,51 +560,112 @@ def run_pipeline(
     # -----------------------------------------------------------------------
     # Stage 5: Dependency Diagnosis
     # -----------------------------------------------------------------------
-    try:
-        result.diagnosis_set = dependency_diagnosis_agent.run(
-            outcome_set=result.outcome_set,
-        )
-        if not result.diagnosis_set or not result.diagnosis_set.diagnoses:
+    while True:
+        try:
+            result.diagnosis_set = dependency_diagnosis_agent.run(
+                outcome_set=result.outcome_set,
+            )
+            if not result.diagnosis_set or not result.diagnosis_set.diagnoses:
+                result.verification_passed = False
+                result.verification_failed_stage = "dependency_diagnosis"
+                reason = "stage did not execute: dependency_diagnosis returned empty diagnosis set"
+                result.verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        reason=reason,
+                        claim="Stage execution: dependency_diagnosis",
+                        agent_stage="dependency_diagnosis",
+                    )
+                )
+                logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to empty output.")
+                return result
+
+            _register_dependency_diagnosis_claims(result.diagnosis_set, result.outcome_set, source_store)
+            vr_5 = verify_stage(source_store, "dependency_diagnosis")
+            result.verification_results.extend(vr_5)
+            if halt_on_verification_failure and any(not v.passed for v in vr_5):
+                result.verification_passed = False
+                result.verification_failed_stage = "dependency_diagnosis"
+                logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to verification failure.")
+                return result
+        except RateLimitError as exc:
+            logger.error("Rate limit error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
+            raise
+        except Exception as exc:
+            logger.error("Error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
             result.verification_passed = False
             result.verification_failed_stage = "dependency_diagnosis"
-            reason = "stage did not execute: dependency_diagnosis returned empty diagnosis set"
             result.verification_results.append(
                 VerificationResult(
                     passed=False,
                     confidence=0.0,
-                    reason=reason,
+                    reason=f"stage did not execute: {exc}",
                     claim="Stage execution: dependency_diagnosis",
                     agent_stage="dependency_diagnosis",
                 )
             )
-            logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to empty output.")
             return result
 
-        _register_dependency_diagnosis_claims(result.diagnosis_set, result.outcome_set, source_store)
-        vr_5 = verify_stage(source_store, "dependency_diagnosis")
-        result.verification_results.extend(vr_5)
-        if halt_on_verification_failure and any(not v.passed for v in vr_5):
-            result.verification_passed = False
-            result.verification_failed_stage = "dependency_diagnosis"
-            logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to verification failure.")
-            return result
-    except RateLimitError as exc:
-        logger.error("Rate limit error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
-        raise
-    except Exception as exc:
-        logger.error("Error executing stage 'dependency_diagnosis': %s", exc, exc_info=True)
-        result.verification_passed = False
-        result.verification_failed_stage = "dependency_diagnosis"
-        result.verification_results.append(
-            VerificationResult(
-                passed=False,
-                confidence=0.0,
-                reason=f"stage did not execute: {exc}",
-                claim="Stage execution: dependency_diagnosis",
-                agent_stage="dependency_diagnosis",
+        # ------------------------------------------------------------------
+        # Sufficiency check: at least one diagnosis must have dependencies
+        # ------------------------------------------------------------------
+        suf_5 = check_sufficiency_dependency_diagnosis(result.diagnosis_set)
+        if suf_5.sufficient:
+            break
+
+        if guard.cap_exceeded("dependency_diagnosis", "outcome_prediction"):
+            logger.warning(
+                "LoopGuard cap exceeded for dependency_diagnosis → outcome_prediction; "
+                "proceeding with last diagnosis output."
+            )
+            break
+
+        guard.record("dependency_diagnosis", "outcome_prediction")
+        iter_count = guard.iteration_count("dependency_diagnosis", "outcome_prediction")
+        gap = (
+            f"Dependency-Diagnosis produced generic/non-specific lock-in output "
+            f"({suf_5.reason}). Invoking timeline_projection_sub_agent to enrich "
+            f"OutcomeProjection timelines and re-running Dependency-Diagnosis. "
+            f"[Iteration {iter_count}]"
+        )
+        result.recalibration_trail.append(
+            RecalibrationRequest(
+                from_stage="dependency_diagnosis",
+                to_stage="outcome_prediction",
+                reason="insufficient",
+                gap_description=gap,
+                iteration_count=iter_count,
             )
         )
-        return result
+        logger.info(
+            "Stage 5 recalibration (%d): %s", iter_count, gap
+        )
+
+        # Invoke timeline_projection_sub_agent on current trajectories + scenarios
+        trajectories = [
+            proj.trajectory
+            for proj in result.outcome_set.outcomes
+            if proj.trajectory is not None
+        ]
+        scenarios = result.scenario_set.scenarios if result.scenario_set else []
+        timeline_projections: list[TimelineProjection] = timeline_projection_sub_agent.run(
+            trajectories=trajectories,
+            scenarios=scenarios,
+        )
+
+        # Attach returned TimelineProjection objects to matching OutcomeProjection entries
+        timeline_map = {tp.scenario_name: tp for tp in timeline_projections}
+        for proj in result.outcome_set.outcomes:
+            if proj.trajectory is not None and proj.trajectory.scenario_name in timeline_map:
+                proj.timeline = timeline_map[proj.trajectory.scenario_name]
+
+        # Re-register outcome-prediction claims with enriched timelines before re-diagnosis
+        _register_outcome_prediction_claims(result.outcome_set, result.scenario_set, source_store)
+
+        # Loop back to re-run Dependency-Diagnosis with enriched OutcomeSet
+        continue
+
 
     # -----------------------------------------------------------------------
     # Stage 6: Orchestrator
