@@ -148,47 +148,69 @@ Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents*
 
 ---
 
+## Phase 7.5 — Recalibration & Fallback Layer (turns the pipeline from a sequential chain into a conditional, self-correcting graph)
+
+Context: Phases 1–7 gave every stage a **verification** gate (is this claim grounded in its source). This phase adds a second, distinct gate — a **sufficiency** check (did the upstream stage give me enough to work with at all) — and the backward routing that fires when it fails. A stage that detects insufficient input doesn't regenerate blindly; it emits a `RecalibrationRequest` naming exactly what's missing and which upstream stage should re-run. This is the mechanism that replaces "simple stepwise" with "stage-gated conditional graph" in the synopsis language.
+
+- [ ] 7.5.1 — `backend/app/verification/recalibration.py` — `RecalibrationRequest` data structure: `from_stage`, `to_stage`, `reason` (`insufficient` | `unverified`), `gap_description`, `iteration_count`; unit test for construction/serialization
+  Commit: `Update - 7.5.1 - RecalibrationRequest data structure`
+- [ ] 7.5.2 — Sufficiency-check function (in `recalibration.py`, reusing `verifier.py`'s pattern) — per-stage threshold checks: e.g. Stack-Mapping has 0–1 surviving layers, Scenario-Generation has <2 viable options after feasibility filtering; unit tests with a known-sufficient and known-insufficient case per stage
+  Commit: `Update - 7.5.2 - sufficiency-check function per stage`
+- [ ] 7.5.3 — Loop-guard: per-`(from_stage, to_stage)` iteration counter carried in pipeline state, capped at 2 retries; unit test confirming the cap is enforced and does not reset across unrelated stage pairs
+  Commit: `Update - 7.5.3 - loop-guard iteration tracking`
+- [ ] 7.5.4 — Context accumulation helper — recalibration appends targeted new data to the existing context object rather than discarding/replacing it; unit test confirming prior context survives a re-ingestion pass
+  Commit: `Update - 7.5.4 - context accumulation on re-ingestion`
+- [ ] 7.5.5 — Wire Stack-Mapping → Ingestion fallback in `pipeline/graph.py`: on insufficient layer mapping, re-invoke Ingestion scoped to the `gap_description` only; integration test (mocked LLM) confirming the loop-back fires and the pipeline continues after
+  Commit: `Update - 7.5.5 - stack-mapping to ingestion fallback wiring`
+- [ ] 7.5.6 — Wire Scenario-Generation fallback routing: on insufficient/generic scenarios, decide target (Stack-Mapping if layer scope too narrow, Ingestion if missing concrete option data e.g. no known vendors) and route accordingly; integration test covering both target branches
+  Commit: `Update - 7.5.6 - scenario-generation fallback routing (dual target)`
+- [ ] 7.5.7 — Wire Outcome-Prediction → Scenario-Generation fallback: on repeated grounded_in failures or low path differentiation, invoke `scenario_refinement_sub_agent` (5.11, previously optional/unused) instead of a blind Scenario-Generation re-run; integration test
+  Commit: `Update - 7.5.7 - outcome-prediction fallback invokes scenario refinement`
+- [ ] 7.5.8 — Wire Dependency-Diagnosis → Outcome-Prediction fallback: on generic/non-specific lock-in output, invoke `timeline_projection_sub_agent` (5.15, previously optional/unused) if it was skipped; integration test
+  Commit: `Update - 7.5.8 - dependency-diagnosis fallback invokes timeline projection`
+- [ ] 7.5.9 — Wire Orchestrator → Dependency-Diagnosis fallback, **path-scoped**: when `cross_path_comparison_sub_agent` finds asymmetric completeness across paths, re-run Dependency-Diagnosis for only the deficient path, not the full stage; integration test confirming the other paths are untouched
+  Commit: `Update - 7.5.9 - orchestrator path-scoped fallback`
+- [ ] 7.5.10 — Partial-verdict terminal state: when the loop-guard cap is hit before a stage becomes sufficient, the pipeline returns a verdict with explicit per-path caveat flags instead of hard-failing or looping indefinitely; unit + integration test forcing the cap and asserting a caveat-flagged (not null) verdict
+  Commit: `Update - 7.5.10 - partial-verdict terminal state on loop-guard exceeded`
+- [ ] 7.5.11 — Extend API response schema (`api/schemas/`) to include a `recalibration_trail`: which stages looped back, why, and how many iterations — supports FR-4/FR-5 explainability; update `POST /decisions` integration test to assert the trail is present and empty for a clean run
+  Commit: `Update - 7.5.11 - recalibration trail in API response`
+- [ ] 7.5.12 — Full end-to-end verification pass: one real (non-mocked) decision brief run through the pipeline confirming at least one deliberate insufficient-input scenario triggers a fallback, resolves within the retry cap, and produces a fully populated verdict
+  Commit: `Update - 7.5.12 - end-to-end recalibration verification pass`
+
+**Checkpoint:** Pipeline is a conditional, stage-gated graph — not a straight sequence — with bounded, targeted backward recalibration and a documented terminal state. This is the checkpoint to demo to the guide before frontend work resumes.
+
+---
+
 ## Phase 8 — Frontend Skeleton
 
-- [x] 8.0 — `docs/frontend-docs/` — create frontend docs folder and add `01_FRONTEND_VISION.md`, other frontend-related docs.
-  Commit: `Update - 8.0 - frontend docs folder & data`
-- [x] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
+- [ ] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
   Commit: `Update - 8.1 - Vite + React scaffold`
-- [x] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
-  Commit: `Update - 8.2 - Tailwind setup with design tokens`
-- [x] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
+- [ ] 8.2 — Add Tailwind CSS config
+  Commit: `Update - 8.2 - Tailwind setup`
+- [ ] 8.3 — `lib/` — API client function to call the backend `/decisions` endpoint
   Commit: `Update - 8.3 - API client for decisions endpoint`
 
-## Phase 9 — Frontend, One Flow Deep First
+## Phase 9 — Frontend, One Component at a Time
 
-Build the Decision Input → Result View flow completely (9.1–9.3) before touching the Dashboard or dependency graph — see `docs/frontend-docs/03_UX_FLOWS.md` (Flow A) and `04_SCREEN_INVENTORY.md` for the full spec of each screen below.
-
-- [x] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
+- [ ] 9.1 — `pages/DecisionInput.tsx` — form to submit entity/capability/options (plain form, no styling polish yet)
   Commit: `Update - 9.1 - decision input form`
-- [x] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
-  Commit: `Update - 9.2 - pipeline status strip wired to backend`
-- [x] 9.3 — `components/verdict-panel/VerdictBanner.tsx` + `PathCard.tsx`, `pages/DecisionResult.tsx` — render the Orchestrator verdict banner and one card per path (outcome/dependency/failure-mode), per `06_COMPONENT_BREAKDOWN.md`'s states for each; plain layout, no design-token styling applied yet
-  Commit: `Update - 9.3 - result view (verdict banner + path cards)`
-- [x] 9.4 — Apply `05_DESIGN_SYSTEM.md` tokens and the density rule (dense chrome / roomy verdict content) to 9.1–9.3; this is the first real styling pass, deliberately kept separate from building the raw components above
-  Commit: `Update - 9.4 - design system pass on input and result flow`
-
-**Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.
-
-- [x] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
-  Commit: `Update - 9.5 - dependency graph visualisation`
-- [x] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
-  Commit: `Update - 9.6 - multi-pane dashboard layout`
-- [x] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
-  Commit: `Update - 9.7 - command bar (navigation only)`
+- [ ] 9.2 — Wire form submit to backend API client, show raw JSON response
+  Commit: `Update - 9.2 - wire input form to backend`
+- [ ] 9.3 — `components/verdict-panel/` — render the comparative verdict as a simple side-by-side layout
+  Commit: `Update - 9.3 - verdict panel component`
+- [ ] 9.4 — `components/dependency-graph/` — react-flow/D3 visualisation of dependency relationships
+  Commit: `Update - 9.4 - dependency graph visualisation`
+- [ ] 9.5 — `components/dashboard/` — assemble multi-pane terminal-style layout using the above components
+  Commit: `Update - 9.5 - multi-pane dashboard layout`
+- [ ] 9.6 — `components/command-bar/` — command-driven input UI (can be a stretch/polish task)
+  Commit: `Update - 9.6 - command bar UI`
 
 ## Phase 10 — Integration & Polish
 
-- [x] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
+- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered; commit any fixes found, described individually
   Commit: `Update - 10.1 - end-to-end manual verification pass`
-- [x] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
-  Commit: `Update - 10.2 - accessibility and motion pass`
-- [x] 10.3 — Final Hybrid Terminal aesthetic review: confirm density rule was applied consistently (dense chrome, roomy verdict/dependency content) and the Dependency Thread signature element reads clearly, not decoratively
-  Commit: `Update - 10.3 - terminal aesthetic review pass`
+- [ ] 10.2 — Styling pass to match Bloomberg-Terminal aesthetic (colors, density, typography)
+  Commit: `Update - 10.2 - terminal aesthetic pass`
 
 ## Phase 11 — Deployment (last, not in parallel with feature work)
 
@@ -209,4 +231,4 @@ Build the Decision Input → Result View flow completely (9.1–9.3) before touc
 
 - Given the target of 50+ commits, most tasks above should map to **one commit each**, not be batched further — the list is already sized for that.
 - If a task still feels too large when you get to it, split it further in this file (e.g. `5.1a`, `5.1b`) before starting, rather than writing a large commit and describing it as several things at once.
-- Backend (Phases 1–7) is a hard gate before Phase 8 begins.
+- Backend (Phases 1–7.5) is a hard gate before Phase 8 begins. Phase 7.5 was added after the Level 1 synopsis review to replace the sequential-only pipeline with a conditional, self-correcting one — see `ARCHITECTURE.md` §3.8 and §6.

@@ -17,6 +17,16 @@
 - Checks each agent's claims against its underlying source before the output is allowed to reach the next agent.
 - Purpose: prevent downstream agents from building conclusions on unverified upstream claims.
 
+## Cross-Cutting Feature: Recalibration & Fallback Layer
+
+- A second gate, distinct from verification: checks whether an upstream stage's output was *sufficient* to work with, not whether a claim is *correct*.
+- On an insufficient result, the stage does not regenerate blindly — it emits a specific, named gap and routes backward to the stage best positioned to fill it (e.g. Stack-Mapping asks Ingestion for targeted data on licensing terms, rather than re-running the whole pipeline).
+- Scenario-Generation is the one stage with a genuine routing decision: it can fall back to Stack-Mapping (scope too narrow) or Ingestion (missing concrete option data), depending on the nature of the gap.
+- Orchestrator fallback is **path-scoped** — if one of three paths has a thin diagnosis, only that path's Dependency-Diagnosis re-runs, not the full stage.
+- Bounded by a loop-guard (max 2 retries per stage-pair) and accumulates context across retries rather than discarding it, keeping added latency bounded.
+- On exceeding the retry cap, the system does not fail or hang — it returns a partial verdict with explicit per-path caveat flags, surfaced to the user via a `recalibration_trail` in the API response.
+- Purpose: turns the pipeline from a fixed sequence into a conditional, self-correcting graph — this is what supports the platform's claim to being a decision-*intelligence* system rather than a fixed six-step script.
+
 ## Dashboard / Interface Features
 
 - **Bloomberg-Terminal-style UI:** dense, command-driven, multi-pane screen designed for fast professional decisions.
@@ -40,7 +50,8 @@
 **MVP (in scope):**
 - Single-decision analysis end-to-end through all six agents.
 - Verification layer active at every stage.
-- Dashboard rendering of the comparative verdict.
+- Recalibration & fallback layer active at every stage (added post-Level-1-review; see Phase 7.5 in `TASKS.md`).
+- Dashboard rendering of the comparative verdict, including recalibration-trail caveats where applicable.
 
 **Future / stretch (not MVP):**
 - Saved decision history and revisit/export.
