@@ -12,6 +12,7 @@ from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
 from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison, PathComparison
 from app.agents.orchestrator.sub_agents.explanation_trail_sub_agent import AuditStep, ExplanationTrail
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection, OutcomeSet
+from app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent import RiskFactor
 from app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent import Trajectory
 from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
 from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
@@ -113,14 +114,20 @@ def test_post_decisions_endpoint_full_pipeline_flow():
     sample_scope = StackScope(
         entity="ACME Corp",
         capability="Speech Recognition",
-        layers=[StackLayer(name="Model", rationale="Speech Recognition requirements", evidence="Speech Recognition requirements for ACME Corp model layer.")],
+        layers=[
+            StackLayer(name="Model", rationale="Speech Recognition requirements", evidence="Speech Recognition requirements for ACME Corp model layer."),
+            StackLayer(name="Audio Infra", rationale="Speech Recognition requirements", evidence="Speech Recognition requirements for ACME Corp model layer."),
+        ],
         links=[],
     )
 
     sample_scenarios = ScenarioSet(
         entity="ACME Corp",
         capability="Speech Recognition",
-        scenarios=[Scenario(name="Build", option_name="build", description="Speech Recognition requirements")],
+        scenarios=[
+            Scenario(name="Build", option_name="build", description="Speech Recognition requirements"),
+            Scenario(name="Buy", option_name="buy", description="Speech Recognition requirements"),
+        ],
     )
 
     sample_outcomes = OutcomeSet(
@@ -133,6 +140,9 @@ def test_post_decisions_endpoint_full_pipeline_flow():
                     scenario_name="Build",
                     summary="Speech Recognition requirements",
                 ),
+                risk_factors=[
+                    RiskFactor(scenario_name="Build", factor_name="Risk", description="Desc")
+                ],
             )
         ],
     )

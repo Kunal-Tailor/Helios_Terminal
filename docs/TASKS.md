@@ -164,7 +164,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.5 - stack-mapping to ingestion fallback wiring`
 - [x] 7.5.6 — Wire Scenario-Generation fallback routing: on insufficient/generic scenarios, decide target (Stack-Mapping if layer scope too narrow, Ingestion if missing concrete option data e.g. no known vendors) and route accordingly; integration test covering both target branches
   Commit: `Update - 7.5.6 - scenario-generation fallback routing (dual target)`
-- [ ] 7.5.7 — Wire Outcome-Prediction → Scenario-Generation fallback: on repeated grounded_in failures or low path differentiation, invoke `scenario_refinement_sub_agent` (5.11, previously optional/unused) instead of a blind Scenario-Generation re-run; integration test
+- [x] 7.5.7 — Wire Outcome-Prediction → Scenario-Generation fallback: on repeated grounded_in failures or low path differentiation, invoke `scenario_refinement_sub_agent` (5.11, previously optional/unused) instead of a blind Scenario-Generation re-run; integration test
   Commit: `Update - 7.5.7 - outcome-prediction fallback invokes scenario refinement`
 - [ ] 7.5.8 — Wire Dependency-Diagnosis → Outcome-Prediction fallback: on generic/non-specific lock-in output, invoke `timeline_projection_sub_agent` (5.15, previously optional/unused) if it was skipped; integration test
   Commit: `Update - 7.5.8 - dependency-diagnosis fallback invokes timeline projection`

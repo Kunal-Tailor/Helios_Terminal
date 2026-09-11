@@ -266,10 +266,22 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
         ],
     )
 
+    sample_outcomes = OutcomeSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="S1",
+                trajectory=Trajectory(scenario_name="S1", summary="sum"),
+                risk_factors=[RiskFactor(scenario_name="S1", factor_name="f", description="d")],
+            )
+        ],
+    )
+
     with patch("app.agents.ingestion.ingestion_agent.run", return_value=bad_context), \
          patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=sample_scope) as mock_stack, \
          patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=sample_scenarios) as mock_scenarios, \
-         patch("app.agents.outcome_prediction.outcome_prediction_agent.run"), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=sample_outcomes), \
          patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run"), \
          patch("app.agents.orchestrator.orchestrator_agent.run"):
 
@@ -819,4 +831,188 @@ def test_pipeline_scenario_generation_fallback_to_ingestion_branch():
         assert req.reason == "insufficient"
         assert req.iteration_count == 1
         assert "[Target: ingestion]" in req.gap_description
+
+
+def test_pipeline_outcome_prediction_fallback_invokes_scenario_refinement():
+    """Integration test: on insufficient outcome predictions (e.g. 0 trajectories or no risk factors),
+    Outcome-Prediction routes backward to Scenario-Generation, invoking scenario_refinement_sub_agent
+    to sharpen specifications rather than a blind re-run, loops back, and continues."""
+    context = IngestionContext(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        options=["lidar-fusion", "camera-only"],
+        context_summary="Auto OEM perception. Fact: Automotive safety integrity ASIL-D. Fact: High resolution sensor data.",
+        key_facts=["Fact: Automotive safety integrity ASIL-D.", "Fact: High resolution sensor data."],
+        sources=["https://example.com/auto1"],
+        raw_retrieved_content="Auto OEM perception. Fact: Automotive safety integrity ASIL-D. Fact: High resolution sensor data.",
+    )
+
+    scope = StackScope(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        layers=[
+            StackLayer(name="Sensor Layer", rationale="Sensors", evidence="Fact: High resolution sensor data."),
+            StackLayer(name="Safety Gateway", rationale="ASIL-D", evidence="Fact: Automotive safety integrity ASIL-D."),
+        ],
+    )
+
+    # Scenarios before refinement
+    raw_scenarios = ScenarioSet(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        scenarios=[
+            Scenario(
+                name="Lidar Fusion",
+                option_name="lidar-fusion",
+                description="Raw lidar fusion setup",
+                grounded_in="Sensor Layer: Sensors Fact: High resolution sensor data.",
+            ),
+            Scenario(
+                name="Camera Only",
+                option_name="camera-only",
+                description="Vision model pipeline",
+                grounded_in="Safety Gateway: ASIL-D Fact: Automotive safety integrity ASIL-D.",
+            ),
+        ],
+    )
+
+    # Refined scenarios returned by scenario_refinement_sub_agent
+    refined_scenarios_list = [
+        Scenario(
+            name="Lidar Fusion Refined",
+            option_name="lidar-fusion",
+            description="Sharpened multi-sensor lidar perception pipeline with redundant ASIL-D processors",
+            implementation_steps=["Procure automotive grade solid-state lidar", "Deploy sensor fusion node"],
+            key_risks=["Sensor calibration drift in harsh weather"],
+            layers_addressed=["Sensor Layer", "Safety Gateway"],
+            grounded_in="Sensor Layer: Sensors Fact: High resolution sensor data.",
+        ),
+        Scenario(
+            name="Camera Only Refined",
+            option_name="camera-only",
+            description="Sharpened end-to-end vision network with temporal feature extraction",
+            implementation_steps=["Train spatial-temporal transformer", "Integrate optical flow"],
+            key_risks=["Edge-case perception failure in occlusion"],
+            layers_addressed=["Sensor Layer"],
+            grounded_in="Safety Gateway: ASIL-D Fact: Automotive safety integrity ASIL-D.",
+        ),
+    ]
+
+    # 1st call to outcome_prediction: outcomes have no trajectory/risk -> insufficient
+    thin_outcomes = OutcomeSet(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Lidar Fusion",
+                trajectory=None,  # No trajectory
+                risk_factors=[],  # No risk factors
+            )
+        ],
+    )
+
+    # 2nd call to outcome_prediction: sufficient projections with trajectory and risk factors
+    sufficient_outcomes = OutcomeSet(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Lidar Fusion Refined",
+                trajectory=Trajectory(
+                    scenario_name="Lidar Fusion Refined",
+                    summary="High accuracy all-weather perception trajectory",
+                    grounded_in="Lidar Fusion Refined: Sharpened multi-sensor lidar perception pipeline with redundant ASIL-D processors",
+                ),
+                risk_factors=[
+                    RiskFactor(
+                        scenario_name="Lidar Fusion Refined",
+                        factor_name="Calibration drift",
+                        description="Drift in winter conditions",
+                    )
+                ],
+            ),
+            OutcomeProjection(
+                scenario_name="Camera Only Refined",
+                trajectory=Trajectory(
+                    scenario_name="Camera Only Refined",
+                    summary="Lower cost vision trajectory",
+                    grounded_in="Camera Only Refined: Sharpened end-to-end vision network with temporal feature extraction",
+                ),
+                risk_factors=[
+                    RiskFactor(
+                        scenario_name="Camera Only Refined",
+                        factor_name="Occlusion risk",
+                        description="Adverse lighting failure",
+                    )
+                ],
+            ),
+        ],
+    )
+
+    mock_diagnoses = DiagnosisSet(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Lidar Fusion Refined",
+                dependencies=[LockInDependency(scenario_name="Lidar Fusion Refined", dependency_name="Lidar Supplier", lock_in_type="Vendor", description="Proprietary transceiver")],
+                failure_modes=[FailureMode(scenario_name="Lidar Fusion Refined", dependency_name="Lidar Supplier", failure_mode_title="Supply disruption", what_breaks="Lidar assembly", trigger_condition="Shortage", time_horizon="Medium", grounded_in="Lidar Fusion Refined: High accuracy all-weather perception trajectory")],
+            )
+        ],
+    )
+
+    mock_verdict = OrchestratorVerdict(
+        entity="Auto OEM",
+        capability="autonomous driving perception",
+        recommended_path="Lidar Fusion Refined",
+        verdict_summary="Lidar fusion path recommended for safety integrity.",
+        key_recommendations=["Lock in multi-year lidar supply"],
+        explanation_trail=ExplanationTrail(
+            summary="Trail",
+            steps=[AuditStep(stage="diagnosis", claim="Lidar Fusion Refined Lidar Supplier", evidence="Evidence", grounded_in="Lidar Fusion Refined Lidar Supplier: Supply disruption Lidar assembly Shortage Medium")],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=raw_scenarios) as mock_scenario_agent_run, \
+         patch("app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent.run", return_value=refined_scenarios_list) as mock_refinement_run, \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", side_effect=[thin_outcomes, sufficient_outcomes]) as mock_outcome_agent_run, \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=mock_diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=mock_verdict):
+
+        res = run_pipeline(
+            entity="Auto OEM",
+            capability="autonomous driving perception",
+            options=["lidar-fusion", "camera-only"],
+        )
+
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "Lidar Fusion Refined"
+        assert res.verification_passed is True
+
+        # Scenario-generation agent was only called once initially (did NOT do a blind agent re-run)
+        assert mock_scenario_agent_run.call_count == 1
+
+        # Instead, scenario_refinement_sub_agent was directly invoked to sharpen the scenario options
+        assert mock_refinement_run.call_count == 1
+        options_arg = mock_refinement_run.call_args.kwargs["options"]
+        assert len(options_arg) == 2
+        assert options_arg[0].name == "Lidar Fusion"
+        assert options_arg[1].name == "Camera Only"
+
+        # Outcome-prediction was called twice (initial thin + re-run with refined scenarios)
+        assert mock_outcome_agent_run.call_count == 2
+        second_call_scenarios = mock_outcome_agent_run.call_args_list[1].kwargs["scenario_set"].scenarios
+        assert second_call_scenarios[0].name == "Lidar Fusion Refined"
+        assert second_call_scenarios[1].name == "Camera Only Refined"
+
+        # Recalibration trail recorded the loop-back
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "outcome_prediction"
+        assert req.to_stage == "scenario_generation"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "scenario_refinement_sub_agent" in req.gap_description
 

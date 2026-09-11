@@ -57,12 +57,15 @@ from app.agents.outcome_prediction import outcome_prediction_agent
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeSet
 from app.agents.scenario_generation import scenario_generation_agent
 from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
+from app.agents.scenario_generation.sub_agents import scenario_refinement_sub_agent
+from app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent import Option
 from app.agents.stack_mapping import stack_mapping_agent
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
 from app.verification.recalibration import (
     LoopGuard,
     RecalibrationRequest,
     accumulate_ingestion_context,
+    check_sufficiency_outcome_prediction,
     check_sufficiency_scenario_generation,
     check_sufficiency_stack_mapping,
 )
@@ -441,36 +444,98 @@ def run_pipeline(
         return result
 
     # -----------------------------------------------------------------------
-    # Stage 4: Outcome Prediction
+    # Stage 4: Outcome Prediction (with Sufficiency Check & Scenario Refinement Fallback)
     # -----------------------------------------------------------------------
     try:
-        result.outcome_set = outcome_prediction_agent.run(
-            scenario_set=result.scenario_set,
-        )
-        if not result.outcome_set or not result.outcome_set.outcomes:
-            result.verification_passed = False
-            result.verification_failed_stage = "outcome_prediction"
-            reason = "stage did not execute: outcome_prediction returned empty outcome set"
-            result.verification_results.append(
-                VerificationResult(
-                    passed=False,
-                    confidence=0.0,
-                    reason=reason,
-                    claim="Stage execution: outcome_prediction",
-                    agent_stage="outcome_prediction",
-                )
+        while True:
+            result.outcome_set = outcome_prediction_agent.run(
+                scenario_set=result.scenario_set,
             )
-            logger.warning("Pipeline halted at stage 'outcome_prediction' due to empty output.")
-            return result
+            if not result.outcome_set or not result.outcome_set.outcomes:
+                result.verification_passed = False
+                result.verification_failed_stage = "outcome_prediction"
+                reason = "stage did not execute: outcome_prediction returned empty outcome set"
+                result.verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        reason=reason,
+                        claim="Stage execution: outcome_prediction",
+                        agent_stage="outcome_prediction",
+                    )
+                )
+                logger.warning("Pipeline halted at stage 'outcome_prediction' due to empty output.")
+                return result
 
-        _register_outcome_prediction_claims(result.outcome_set, result.scenario_set, source_store)
-        vr_4 = verify_stage(source_store, "outcome_prediction")
-        result.verification_results.extend(vr_4)
-        if halt_on_verification_failure and any(not v.passed for v in vr_4):
-            result.verification_passed = False
-            result.verification_failed_stage = "outcome_prediction"
-            logger.warning("Pipeline halted at stage 'outcome_prediction' due to verification failure.")
-            return result
+            _register_outcome_prediction_claims(result.outcome_set, result.scenario_set, source_store)
+            vr_4 = verify_stage(source_store, "outcome_prediction")
+            result.verification_results.extend(vr_4)
+            if halt_on_verification_failure and any(not v.passed for v in vr_4):
+                result.verification_passed = False
+                result.verification_failed_stage = "outcome_prediction"
+                logger.warning("Pipeline halted at stage 'outcome_prediction' due to verification failure.")
+                return result
+
+            # Sufficiency check: Outcome-Prediction -> Scenario-Generation fallback
+            suff_op = check_sufficiency_outcome_prediction(result.outcome_set)
+            if not suff_op.sufficient:
+                if not guard.cap_exceeded("outcome_prediction", "scenario_generation"):
+                    iter_count = guard.record("outcome_prediction", "scenario_generation")
+                    gap_desc = (
+                        f"{suff_op.reason} [Invoking scenario_refinement_sub_agent to sharpen scenario specifications]"
+                    )
+                    recal_req = RecalibrationRequest(
+                        from_stage="outcome_prediction",
+                        to_stage="scenario_generation",
+                        reason="insufficient",
+                        gap_description=gap_desc,
+                        iteration_count=iter_count,
+                    )
+                    result.recalibration_trail.append(recal_req)
+                    logger.info(
+                        "Recalibration triggered from 'outcome_prediction' to 'scenario_generation' (iteration %d): %s",
+                        iter_count,
+                        gap_desc,
+                    )
+
+                    # Targeted refinement: invoke scenario_refinement_sub_agent instead of blind re-run
+                    candidate_options = [
+                        Option(
+                            name=sc.name,
+                            description=sc.description,
+                            rationale=getattr(sc, "rationale", ""),
+                            grounded_in=sc.grounded_in,
+                        )
+                        for sc in (result.scenario_set.scenarios if result.scenario_set else [])
+                    ]
+                    stack_scope_for_refine = result.stack_scope or StackScope(entity=entity, capability=capability)
+                    refined_scenarios = scenario_refinement_sub_agent.run(
+                        options=candidate_options,
+                        stack_scope=stack_scope_for_refine,
+                    )
+                    if refined_scenarios:
+                        result.scenario_set = ScenarioSet(
+                            entity=entity,
+                            capability=capability,
+                            scenarios=refined_scenarios,
+                        )
+                    _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
+                    vr_sg = verify_stage(source_store, "scenario_generation")
+                    result.verification_results.extend(vr_sg)
+                    if halt_on_verification_failure and any(not v.passed for v in vr_sg):
+                        result.verification_passed = False
+                        result.verification_failed_stage = "scenario_generation"
+                        logger.warning("Pipeline halted during recalibration scenario refinement due to verification failure.")
+                        return result
+
+                    # Loop back to re-run outcome_prediction with the refined scenario set
+                    continue
+                else:
+                    logger.warning(
+                        "Recalibration cap reached for outcome_prediction -> scenario_generation (attempt %d). Continuing pipeline.",
+                        guard.iteration_count("outcome_prediction", "scenario_generation"),
+                    )
+            break
     except RateLimitError as exc:
         logger.error("Rate limit error executing stage 'outcome_prediction': %s", exc, exc_info=True)
         raise
