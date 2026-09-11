@@ -63,6 +63,7 @@ from app.verification.recalibration import (
     LoopGuard,
     RecalibrationRequest,
     accumulate_ingestion_context,
+    check_sufficiency_scenario_generation,
     check_sufficiency_stack_mapping,
 )
 from app.verification.source_store import SourcedClaim, SourceStore
@@ -312,36 +313,115 @@ def run_pipeline(
         return result
 
     # -----------------------------------------------------------------------
-    # Stage 3: Scenario Generation
+    # Stage 3: Scenario Generation (with Sufficiency Check & Dual-Target Fallback)
     # -----------------------------------------------------------------------
     try:
-        result.scenario_set = scenario_generation_agent.run(
-            stack_scope=result.stack_scope,
-        )
-        if not result.scenario_set or not result.scenario_set.scenarios:
-            result.verification_passed = False
-            result.verification_failed_stage = "scenario_generation"
-            reason = "stage did not execute: scenario_generation returned empty scenario set"
-            result.verification_results.append(
-                VerificationResult(
-                    passed=False,
-                    confidence=0.0,
-                    reason=reason,
-                    claim="Stage execution: scenario_generation",
-                    agent_stage="scenario_generation",
-                )
+        while True:
+            result.scenario_set = scenario_generation_agent.run(
+                stack_scope=result.stack_scope,
             )
-            logger.warning("Pipeline halted at stage 'scenario_generation' due to empty output.")
-            return result
+            if not result.scenario_set or not result.scenario_set.scenarios:
+                result.verification_passed = False
+                result.verification_failed_stage = "scenario_generation"
+                reason = "stage did not execute: scenario_generation returned empty scenario set"
+                result.verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        reason=reason,
+                        claim="Stage execution: scenario_generation",
+                        agent_stage="scenario_generation",
+                    )
+                )
+                logger.warning("Pipeline halted at stage 'scenario_generation' due to empty output.")
+                return result
 
-        _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
-        vr_3 = verify_stage(source_store, "scenario_generation")
-        result.verification_results.extend(vr_3)
-        if halt_on_verification_failure and any(not v.passed for v in vr_3):
-            result.verification_passed = False
-            result.verification_failed_stage = "scenario_generation"
-            logger.warning("Pipeline halted at stage 'scenario_generation' due to verification failure.")
-            return result
+            _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
+            vr_3 = verify_stage(source_store, "scenario_generation")
+            result.verification_results.extend(vr_3)
+            if halt_on_verification_failure and any(not v.passed for v in vr_3):
+                result.verification_passed = False
+                result.verification_failed_stage = "scenario_generation"
+                logger.warning("Pipeline halted at stage 'scenario_generation' due to verification failure.")
+                return result
+
+            # Sufficiency check: Scenario-Generation -> Stack-Mapping OR Ingestion fallback
+            suff_sg = check_sufficiency_scenario_generation(result.scenario_set)
+            if not suff_sg.sufficient:
+                target_stage = _decide_scenario_fallback_target(
+                    scenario_set=result.scenario_set,
+                    stack_scope=result.stack_scope,
+                    ingestion_context=result.ingestion_context,
+                )
+                if not guard.cap_exceeded("scenario_generation", target_stage):
+                    iter_count = guard.record("scenario_generation", target_stage)
+                    gap_desc = f"{suff_sg.reason} [Target: {target_stage}]"
+                    recal_req = RecalibrationRequest(
+                        from_stage="scenario_generation",
+                        to_stage=target_stage,
+                        reason="insufficient",
+                        gap_description=gap_desc,
+                        iteration_count=iter_count,
+                    )
+                    result.recalibration_trail.append(recal_req)
+                    logger.info(
+                        "Recalibration triggered from 'scenario_generation' to '%s' (iteration %d): %s",
+                        target_stage,
+                        iter_count,
+                        gap_desc,
+                    )
+
+                    if target_stage == "ingestion":
+                        # Re-invoke Ingestion scoped to missing concrete option data
+                        re_ingest_ctx = ingestion_agent.run(
+                            entity=entity,
+                            capability=f"{capability} (Gap: {gap_desc})",
+                            options=options_list,
+                        )
+                        result.ingestion_context = accumulate_ingestion_context(
+                            result.ingestion_context,
+                            re_ingest_ctx,
+                        )
+                        _register_ingestion_claims(re_ingest_ctx, source_store)
+                        vr_re = verify_stage(source_store, "ingestion")
+                        result.verification_results.extend(vr_re)
+                        if halt_on_verification_failure and any(not v.passed for v in vr_re):
+                            result.verification_passed = False
+                            result.verification_failed_stage = "ingestion"
+                            logger.warning("Pipeline halted during recalibration re-ingestion due to verification failure.")
+                            return result
+
+                        # Also re-run Stack-Mapping with the newly accumulated context
+                        result.stack_scope = stack_mapping_agent.run(context=result.ingestion_context)
+                        _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
+                        vr_sm = verify_stage(source_store, "stack_mapping")
+                        result.verification_results.extend(vr_sm)
+                        if halt_on_verification_failure and any(not v.passed for v in vr_sm):
+                            result.verification_passed = False
+                            result.verification_failed_stage = "stack_mapping"
+                            logger.warning("Pipeline halted during recalibration stack-mapping due to verification failure.")
+                            return result
+                    else:
+                        # target_stage == "stack_mapping": re-run Stack-Mapping to broaden layer scope
+                        result.stack_scope = stack_mapping_agent.run(context=result.ingestion_context)
+                        _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
+                        vr_sm = verify_stage(source_store, "stack_mapping")
+                        result.verification_results.extend(vr_sm)
+                        if halt_on_verification_failure and any(not v.passed for v in vr_sm):
+                            result.verification_passed = False
+                            result.verification_failed_stage = "stack_mapping"
+                            logger.warning("Pipeline halted during recalibration stack-mapping due to verification failure.")
+                            return result
+
+                    # Loop back to re-run scenario_generation
+                    continue
+                else:
+                    logger.warning(
+                        "Recalibration cap reached for scenario_generation -> %s (attempt %d). Continuing pipeline.",
+                        target_stage,
+                        guard.iteration_count("scenario_generation", target_stage),
+                    )
+            break
     except RateLimitError as exc:
         logger.error("Rate limit error executing stage 'scenario_generation': %s", exc, exc_info=True)
         raise
@@ -516,6 +596,36 @@ def run_pipeline(
 
 
 run = run_pipeline
+
+
+# ---------------------------------------------------------------------------
+# Recalibration routing decision helpers
+# ---------------------------------------------------------------------------
+
+def _decide_scenario_fallback_target(
+    scenario_set: ScenarioSet | None,
+    stack_scope: StackScope | None,
+    ingestion_context: IngestionContext | None,
+) -> str:
+    """Decide whether Scenario-Generation should fall back to Stack-Mapping or Ingestion.
+
+    Routing policy (ARCHITECTURE.md §3.8, §6):
+      - If Stack-Mapping layer scope is narrow (<= 2 layers), route to "stack_mapping"
+        to broaden the architectural layer coverage.
+      - If Stack-Mapping already has sufficient layers (> 2 layers) but Scenario-Generation
+        could not produce viable concrete options (e.g. missing concrete vendor/solution data),
+        route to "ingestion" to gather concrete market/vendor evidence.
+      - If Ingestion has no options or no structured source content, route to "ingestion".
+
+    Returns
+    -------
+    str
+        "stack_mapping" or "ingestion"
+    """
+    layer_count = len(stack_scope.layers) if stack_scope and stack_scope.layers else 0
+    if layer_count <= 2:
+        return "stack_mapping"
+    return "ingestion"
 
 
 # ---------------------------------------------------------------------------

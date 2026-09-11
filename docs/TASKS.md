@@ -162,7 +162,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.4 - context accumulation on re-ingestion`
 - [x] 7.5.5 — Wire Stack-Mapping → Ingestion fallback in `pipeline/graph.py`: on insufficient layer mapping, re-invoke Ingestion scoped to the `gap_description` only; integration test (mocked LLM) confirming the loop-back fires and the pipeline continues after
   Commit: `Update - 7.5.5 - stack-mapping to ingestion fallback wiring`
-- [ ] 7.5.6 — Wire Scenario-Generation fallback routing: on insufficient/generic scenarios, decide target (Stack-Mapping if layer scope too narrow, Ingestion if missing concrete option data e.g. no known vendors) and route accordingly; integration test covering both target branches
+- [x] 7.5.6 — Wire Scenario-Generation fallback routing: on insufficient/generic scenarios, decide target (Stack-Mapping if layer scope too narrow, Ingestion if missing concrete option data e.g. no known vendors) and route accordingly; integration test covering both target branches
   Commit: `Update - 7.5.6 - scenario-generation fallback routing (dual target)`
 - [ ] 7.5.7 — Wire Outcome-Prediction → Scenario-Generation fallback: on repeated grounded_in failures or low path differentiation, invoke `scenario_refinement_sub_agent` (5.11, previously optional/unused) instead of a blind Scenario-Generation re-run; integration test
   Commit: `Update - 7.5.7 - outcome-prediction fallback invokes scenario refinement`

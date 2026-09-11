@@ -58,7 +58,15 @@ def test_pipeline_graph_end_to_end_success():
                 implementation_steps=["Download weights", "Quantize for NPU"],
                 key_risks=["Model license restrictions"],
                 layers_addressed=["Model Weights"],
-            )
+            ),
+            Scenario(
+                name="Build In-House",
+                option_name="build in-house",
+                description="Small language model edge inference",
+                implementation_steps=["Procure GPUs", "Train base model"],
+                key_risks=["Long timeline"],
+                layers_addressed=["Inference Hardware"],
+            ),
         ],
     )
 
@@ -249,9 +257,18 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
         links=[],
     )
 
+    sample_scenarios = ScenarioSet(
+        entity="Test Entity",
+        capability="Test Cap",
+        scenarios=[
+            Scenario(name="S1", option_name="o1", description="desc1"),
+            Scenario(name="S2", option_name="o2", description="desc2"),
+        ],
+    )
+
     with patch("app.agents.ingestion.ingestion_agent.run", return_value=bad_context), \
          patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=sample_scope) as mock_stack, \
-         patch("app.agents.scenario_generation.scenario_generation_agent.run") as mock_scenarios, \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=sample_scenarios) as mock_scenarios, \
          patch("app.agents.outcome_prediction.outcome_prediction_agent.run"), \
          patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run"), \
          patch("app.agents.orchestrator.orchestrator_agent.run"):
@@ -409,7 +426,13 @@ def test_pipeline_stack_mapping_to_ingestion_fallback_fires_and_continues():
                 option_name="build",
                 description="Hardware and Model Weights setup",
                 grounded_in="Hardware: Hardware constraint Fact: Edge device has limited NPU memory.",
-            )
+            ),
+            Scenario(
+                name="Buy",
+                option_name="buy",
+                description="Pre-quantized edge model purchase",
+                grounded_in="Model Weights: Quantized weights needed Fact: Model weights quantized for edge.",
+            ),
         ],
     )
 
@@ -499,4 +522,301 @@ def test_pipeline_stack_mapping_to_ingestion_fallback_fires_and_continues():
 
         # 6. Downstream stages continued and executed
         mock_scenarios_run.assert_called_once()
+
+
+def test_pipeline_scenario_generation_fallback_to_stack_mapping_branch():
+    """Integration test (Branch 1): on insufficient scenarios when stack scope is narrow (<= 2 layers),
+    Scenario-Generation routes backward to Stack-Mapping to broaden layer scope, loops back, and continues."""
+    context = IngestionContext(
+        entity="Gov Agency",
+        capability="secure LLM",
+        options=["open-weights", "commercial"],
+        context_summary="Gov Agency secure LLM deployment. Fact: Local infrastructure has GPU cluster. Fact: Data privacy rules strict.",
+        key_facts=["Fact: Local infrastructure has GPU cluster.", "Fact: Data privacy rules strict."],
+        sources=["https://example.com/sec1"],
+        raw_retrieved_content="Gov Agency secure LLM deployment. Fact: Local infrastructure has GPU cluster. Fact: Data privacy rules strict.",
+    )
+
+    # Initial narrow stack scope (2 layers <= 2 -> routes to stack_mapping)
+    initial_scope = StackScope(
+        entity="Gov Agency",
+        capability="secure LLM",
+        layers=[
+            StackLayer(name="Model Weights", rationale="Weights", evidence="Fact: Local infrastructure has GPU cluster."),
+            StackLayer(name="Data Governance", rationale="Rules", evidence="Fact: Data privacy rules strict."),
+        ],
+    )
+
+    # Broadened stack scope after recalibration re-run
+    broadened_scope = StackScope(
+        entity="Gov Agency",
+        capability="secure LLM",
+        layers=[
+            StackLayer(name="Model Weights", rationale="Weights", evidence="Fact: Local infrastructure has GPU cluster."),
+            StackLayer(name="Data Governance", rationale="Rules", evidence="Fact: Data privacy rules strict."),
+            StackLayer(name="Inference Infrastructure", rationale="Cluster", evidence="Fact: Local infrastructure has GPU cluster."),
+        ],
+    )
+
+    # 1st call to scenario_generation: 1 scenario -> insufficient (< 2 scenarios)
+    thin_scenarios = ScenarioSet(
+        entity="Gov Agency",
+        capability="secure LLM",
+        scenarios=[
+            Scenario(
+                name="Open-Weights",
+                option_name="open-weights",
+                description="Local deployment on cluster",
+                grounded_in="Model Weights: Weights Fact: Local infrastructure has GPU cluster.",
+            )
+        ],
+    )
+
+    # 2nd call to scenario_generation: 2 scenarios -> sufficient
+    sufficient_scenarios = ScenarioSet(
+        entity="Gov Agency",
+        capability="secure LLM",
+        scenarios=[
+            Scenario(
+                name="Open-Weights",
+                option_name="open-weights",
+                description="Local deployment on cluster",
+                grounded_in="Model Weights: Weights Fact: Local infrastructure has GPU cluster.",
+            ),
+            Scenario(
+                name="Commercial API",
+                option_name="commercial",
+                description="Encrypted VPC commercial gateway",
+                grounded_in="Data Governance: Rules Fact: Data privacy rules strict.",
+            ),
+        ],
+    )
+
+    mock_outcomes = OutcomeSet(
+        entity="Gov Agency",
+        capability="secure LLM",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Open-Weights",
+                trajectory=Trajectory(scenario_name="Open-Weights", summary="Local traj", grounded_in="Open-Weights: Local deployment on cluster"),
+                risk_factors=[RiskFactor(scenario_name="Open-Weights", factor_name="Risk1", description="Desc1")],
+            ),
+            OutcomeProjection(
+                scenario_name="Commercial API",
+                trajectory=Trajectory(scenario_name="Commercial API", summary="VPC traj", grounded_in="Commercial API: Encrypted VPC commercial gateway"),
+                risk_factors=[RiskFactor(scenario_name="Commercial API", factor_name="Risk2", description="Desc2")],
+            ),
+        ],
+    )
+
+    mock_diagnoses = DiagnosisSet(
+        entity="Gov Agency",
+        capability="secure LLM",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Open-Weights",
+                dependencies=[LockInDependency(scenario_name="Open-Weights", dependency_name="Hardware", lock_in_type="Compute", description="GPU")],
+                failure_modes=[FailureMode(scenario_name="Open-Weights", dependency_name="Hardware", failure_mode_title="Fail1", what_breaks="GPU breaks", trigger_condition="Trig1", time_horizon="Short", grounded_in="Open-Weights: Local traj")],
+            )
+        ],
+    )
+
+    mock_verdict = OrchestratorVerdict(
+        entity="Gov Agency",
+        capability="secure LLM",
+        recommended_path="Open-Weights",
+        verdict_summary="Verdict summary for secure LLM",
+        key_recommendations=["Deploy open weights"],
+        explanation_trail=ExplanationTrail(
+            summary="Trail",
+            steps=[AuditStep(stage="diagnosis", claim="Open-Weights Hardware", evidence="Evidence", grounded_in="Open-Weights Hardware: Fail1 GPU breaks Trig1 Short")],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context) as mock_ingest, \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", side_effect=[initial_scope, broadened_scope]) as mock_stack, \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", side_effect=[thin_scenarios, sufficient_scenarios]) as mock_scenarios, \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=mock_outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=mock_diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=mock_verdict):
+
+        res = run_pipeline(
+            entity="Gov Agency",
+            capability="secure LLM",
+            options=["open-weights", "commercial"],
+        )
+
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "Open-Weights"
+        assert res.verification_passed is True
+
+        # Ingestion was only called once initially (did NOT fall back to Ingestion)
+        assert mock_ingest.call_count == 1
+
+        # Stack-mapping was called twice (initial + recalibration re-run to broaden scope)
+        assert mock_stack.call_count == 2
+
+        # Scenario-generation was called twice (initial thin + re-run with broadened scope)
+        assert mock_scenarios.call_count == 2
+
+        # Recalibration trail verifies target was "stack_mapping"
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "scenario_generation"
+        assert req.to_stage == "stack_mapping"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "[Target: stack_mapping]" in req.gap_description
+
+
+def test_pipeline_scenario_generation_fallback_to_ingestion_branch():
+    """Integration test (Branch 2): on insufficient scenarios when stack scope is already broad (> 2 layers),
+    Scenario-Generation routes backward to Ingestion to retrieve concrete options/vendor data, loops back, and continues."""
+    context = IngestionContext(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        options=["vendor A", "vendor B"],
+        context_summary="FinTech Corp fraud detection. Fact: Low latency transaction stream. Fact: ISO compliance mandated. Fact: Model weights hosted in cloud.",
+        key_facts=["Fact: Low latency transaction stream.", "Fact: ISO compliance mandated.", "Fact: Model weights hosted in cloud."],
+        sources=["https://example.com/fin1"],
+        raw_retrieved_content="FinTech Corp fraud detection. Fact: Low latency transaction stream. Fact: ISO compliance mandated. Fact: Model weights hosted in cloud.",
+    )
+
+    re_ingest_context = IngestionContext(
+        entity="FinTech Corp",
+        capability="fraud detection (Gap: missing concrete vendor data)",
+        options=["vendor A", "vendor B"],
+        context_summary="Targeted vendor data for Vendor A and Vendor B. Fact: Vendor A supports on-prem. Fact: Vendor B cloud API.",
+        key_facts=["Fact: Vendor A supports on-prem.", "Fact: Vendor B cloud API."],
+        sources=["https://example.com/fin2"],
+        raw_retrieved_content="Targeted vendor data for Vendor A and Vendor B. Fact: Vendor A supports on-prem. Fact: Vendor B cloud API.",
+    )
+
+    # Broad initial stack scope (3 layers > 2 -> routes to ingestion)
+    broad_scope = StackScope(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        layers=[
+            StackLayer(name="Inference Infra", rationale="Stream", evidence="Fact: Low latency transaction stream."),
+            StackLayer(name="Compliance Layer", rationale="ISO", evidence="Fact: ISO compliance mandated."),
+            StackLayer(name="Model Weights", rationale="Cloud", evidence="Fact: Model weights hosted in cloud."),
+        ],
+    )
+
+    # 1st call to scenario_generation: 1 scenario -> insufficient (< 2 scenarios)
+    thin_scenarios = ScenarioSet(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        scenarios=[
+            Scenario(
+                name="Generic Option",
+                option_name="generic",
+                description="Generic fraud pipeline",
+                grounded_in="Inference Infra: Stream Fact: Low latency transaction stream.",
+            )
+        ],
+    )
+
+    # 2nd call to scenario_generation after re-ingestion: 2 concrete scenarios
+    sufficient_scenarios = ScenarioSet(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        scenarios=[
+            Scenario(
+                name="Vendor A Appliance",
+                option_name="vendor A",
+                description="On-prem appliance deployment",
+                grounded_in="Inference Infra: Stream Fact: Low latency transaction stream.",
+            ),
+            Scenario(
+                name="Vendor B Cloud",
+                option_name="vendor B",
+                description="Cloud API deployment",
+                grounded_in="Model Weights: Cloud Fact: Model weights hosted in cloud.",
+            ),
+        ],
+    )
+
+    mock_outcomes = OutcomeSet(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Vendor A Appliance",
+                trajectory=Trajectory(scenario_name="Vendor A Appliance", summary="Appliance traj", grounded_in="Vendor A Appliance: On-prem appliance deployment"),
+                risk_factors=[RiskFactor(scenario_name="Vendor A Appliance", factor_name="Risk1", description="Desc1")],
+            ),
+            OutcomeProjection(
+                scenario_name="Vendor B Cloud",
+                trajectory=Trajectory(scenario_name="Vendor B Cloud", summary="Cloud traj", grounded_in="Vendor B Cloud: Cloud API deployment"),
+                risk_factors=[RiskFactor(scenario_name="Vendor B Cloud", factor_name="Risk2", description="Desc2")],
+            ),
+        ],
+    )
+
+    mock_diagnoses = DiagnosisSet(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Vendor A Appliance",
+                dependencies=[LockInDependency(scenario_name="Vendor A Appliance", dependency_name="Appliance Vendor", lock_in_type="Vendor", description="Hardware")],
+                failure_modes=[FailureMode(scenario_name="Vendor A Appliance", dependency_name="Appliance Vendor", failure_mode_title="Break1", what_breaks="Appliance breaks", trigger_condition="Trig", time_horizon="Medium", grounded_in="Vendor A Appliance: Appliance traj")],
+            )
+        ],
+    )
+
+    mock_verdict = OrchestratorVerdict(
+        entity="FinTech Corp",
+        capability="fraud detection",
+        recommended_path="Vendor A Appliance",
+        verdict_summary="Verdict summary for fraud detection",
+        key_recommendations=["Deploy Vendor A"],
+        explanation_trail=ExplanationTrail(
+            summary="Trail",
+            steps=[AuditStep(stage="diagnosis", claim="Vendor A Appliance Appliance Vendor", evidence="Evidence", grounded_in="Vendor A Appliance Appliance Vendor: Break1 Appliance breaks Trig Medium")],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", side_effect=[context, re_ingest_context]) as mock_ingest, \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=broad_scope) as mock_stack, \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", side_effect=[thin_scenarios, sufficient_scenarios]) as mock_scenarios, \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=mock_outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=mock_diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=mock_verdict):
+
+        res = run_pipeline(
+            entity="FinTech Corp",
+            capability="fraud detection",
+            options=["vendor A", "vendor B"],
+        )
+
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "Vendor A Appliance"
+        assert res.verification_passed is True
+
+        # Ingestion was called twice (initial + scoped re-ingestion)
+        assert mock_ingest.call_count == 2
+        second_call = mock_ingest.call_args_list[1]
+        assert "[Target: ingestion]" in second_call.kwargs["capability"]
+
+        # Stack-mapping was called twice (initial + re-run with accumulated context)
+        assert mock_stack.call_count == 2
+
+        # Scenario-generation was called twice (initial thin + re-run with re-ingested context)
+        assert mock_scenarios.call_count == 2
+
+        # Context accumulated the new facts and sources
+        assert res.ingestion_context is not None
+        assert "Fact: Vendor A supports on-prem." in res.ingestion_context.key_facts
+        assert "https://example.com/fin2" in res.ingestion_context.sources
+
+        # Recalibration trail verifies target was "ingestion"
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "scenario_generation"
+        assert req.to_stage == "ingestion"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "[Target: ingestion]" in req.gap_description
 
