@@ -170,7 +170,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
   Commit: `Update - 7.5.8 - dependency-diagnosis fallback invokes timeline projection`
 - [x] 7.5.9 — Wire Orchestrator → Dependency-Diagnosis fallback, **path-scoped**: when `cross_path_comparison_sub_agent` finds asymmetric completeness across paths, re-run Dependency-Diagnosis for only the deficient path, not the full stage; integration test confirming the other paths are untouched
   Commit: `Update - 7.5.9 - orchestrator path-scoped fallback`
-- [ ] 7.5.10 — Partial-verdict terminal state: when the loop-guard cap is hit before a stage becomes sufficient, the pipeline returns a verdict with explicit per-path caveat flags instead of hard-failing or looping indefinitely; unit + integration test forcing the cap and asserting a caveat-flagged (not null) verdict
+- [x] 7.5.10 — Partial-verdict terminal state: when the loop-guard cap is hit before a stage becomes sufficient, the pipeline returns a verdict with explicit per-path caveat flags instead of hard-failing or looping indefinitely; unit + integration test forcing the cap and asserting a caveat-flagged (not null) verdict
   Commit: `Update - 7.5.10 - partial-verdict terminal state on loop-guard exceeded`
 - [ ] 7.5.11 — Extend API response schema (`api/schemas/`) to include a `recalibration_trail`: which stages looped back, why, and how many iterations — supports FR-4/FR-5 explainability; update `POST /decisions` integration test to assert the trail is present and empty for a clean run
   Commit: `Update - 7.5.11 - recalibration trail in API response`

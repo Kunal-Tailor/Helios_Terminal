@@ -113,6 +113,11 @@ class PipelineResult:
         Name of the stage that failed verification, if halted or flagged.
     recalibration_trail:
         List of :class:`~app.verification.recalibration.RecalibrationRequest` records showing backward routes.
+    partial_verdict_caveats:
+        Human-readable caveat strings emitted when the loop-guard cap is hit before a stage
+        reaches sufficiency.  Each string identifies the stage pair that hit the cap and the
+        insufficiency reason, so callers know the verdict was produced under constrained
+        recalibration.  An empty list means the pipeline ran clean with no cap-hit events.
     """
 
     entity: str
@@ -129,6 +134,7 @@ class PipelineResult:
     verification_passed: bool = True
     verification_failed_stage: str | None = None
     recalibration_trail: list[RecalibrationRequest] = field(default_factory=list)
+    partial_verdict_caveats: list[str] = field(default_factory=list)
 
 
 def run_pipeline(
@@ -296,6 +302,12 @@ def run_pipeline(
                     # Loop back and re-run stack_mapping with accumulated context
                     continue
                 else:
+                    caveat = (
+                        f"Loop-guard cap hit: stack_mapping → ingestion "
+                        f"(cap={guard.max_retries}, iterations={guard.iteration_count('stack_mapping', 'ingestion')}). "
+                        f"Stack-Mapping output may be insufficiently grounded; verdict produced under constrained recalibration."
+                    )
+                    result.partial_verdict_caveats.append(caveat)
                     logger.warning(
                         "Recalibration cap reached for stack_mapping -> ingestion (attempt %d). Continuing pipeline.",
                         guard.iteration_count("stack_mapping", "ingestion"),
@@ -423,6 +435,12 @@ def run_pipeline(
                     # Loop back to re-run scenario_generation
                     continue
                 else:
+                    caveat = (
+                        f"Loop-guard cap hit: scenario_generation → {target_stage} "
+                        f"(cap={guard.max_retries}, iterations={guard.iteration_count('scenario_generation', target_stage)}). "
+                        f"Scenario-Generation output may be insufficient; verdict produced under constrained recalibration."
+                    )
+                    result.partial_verdict_caveats.append(caveat)
                     logger.warning(
                         "Recalibration cap reached for scenario_generation -> %s (attempt %d). Continuing pipeline.",
                         target_stage,
@@ -535,6 +553,12 @@ def run_pipeline(
                     # Loop back to re-run outcome_prediction with the refined scenario set
                     continue
                 else:
+                    caveat = (
+                        f"Loop-guard cap hit: outcome_prediction → scenario_generation "
+                        f"(cap={guard.max_retries}, iterations={guard.iteration_count('outcome_prediction', 'scenario_generation')}). "
+                        f"Outcome-Prediction output may lack sufficient trajectory/risk data; verdict produced under constrained recalibration."
+                    )
+                    result.partial_verdict_caveats.append(caveat)
                     logger.warning(
                         "Recalibration cap reached for outcome_prediction -> scenario_generation (attempt %d). Continuing pipeline.",
                         guard.iteration_count("outcome_prediction", "scenario_generation"),
@@ -616,6 +640,12 @@ def run_pipeline(
             break
 
         if guard.cap_exceeded("dependency_diagnosis", "outcome_prediction"):
+            caveat = (
+                f"Loop-guard cap hit: dependency_diagnosis → outcome_prediction "
+                f"(cap={guard.max_retries}, iterations={guard.iteration_count('dependency_diagnosis', 'outcome_prediction')}). "
+                f"Dependency-Diagnosis output may be generic or lack specific lock-ins; verdict produced under constrained recalibration."
+            )
+            result.partial_verdict_caveats.append(caveat)
             logger.warning(
                 "LoopGuard cap exceeded for dependency_diagnosis → outcome_prediction; "
                 "proceeding with last diagnosis output."
@@ -729,6 +759,12 @@ def run_pipeline(
             break
 
         if guard.cap_exceeded("orchestrator", "dependency_diagnosis"):
+            caveat = (
+                f"Loop-guard cap hit: orchestrator → dependency_diagnosis "
+                f"(cap={guard.max_retries}, iterations={guard.iteration_count('orchestrator', 'dependency_diagnosis')}). "
+                f"Orchestrator cross-path comparison relies on asymmetric lock-in data; verdict produced under constrained recalibration."
+            )
+            result.partial_verdict_caveats.append(caveat)
             logger.warning(
                 "LoopGuard cap exceeded for orchestrator → dependency_diagnosis; "
                 "proceeding with last verdict."

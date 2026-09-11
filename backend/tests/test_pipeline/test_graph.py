@@ -1598,3 +1598,108 @@ def test_pipeline_orchestrator_fallback_path_scoped_dependency_diagnosis():
         assert req.iteration_count == 1
         assert "cross_path_comparison_sub_agent" in req.gap_description
         assert "Open-Source On-Prem" in req.gap_description
+
+
+def test_pipeline_partial_verdict_terminal_state_on_loop_guard_exceeded():
+    """Integration test (7.5.10): when the loop-guard cap is hit before a stage becomes sufficient,
+    the pipeline appends a caveat to `partial_verdict_caveats` and proceeds rather than looping indefinitely.
+    Asserts a caveat-flagged (not null) verdict is returned."""
+    
+    # We will mock stack_mapping to ALWAYS return a 1-layer scope (which is insufficient).
+    # With LoopGuard max_retries=1, it will try to fallback once, and on the next iteration
+    # it will hit the cap and proceed anyway.
+    
+    context = IngestionContext(
+        entity="Corp", capability="AI", options=["A"],
+        context_summary="Fact: Something.", key_facts=["Fact: Something."],
+        sources=["http://x.com"], raw_retrieved_content="Fact: Something."
+    )
+    
+    # Always insufficient (< 2 layers)
+    thin_scope = StackScope(
+        entity="Corp", capability="AI",
+        layers=[StackLayer(name="Layer", rationale="R", evidence="Fact: Something.")]
+    )
+    
+    # Valid output for remaining stages so the pipeline completes
+    scenarios = ScenarioSet(
+        entity="Corp", capability="AI",
+        scenarios=[
+            Scenario(name="A", option_name="A", description="A", grounded_in="Layer: R Fact: Something."),
+            Scenario(name="B", option_name="B", description="B", grounded_in="Layer: R Fact: Something.")
+        ]
+    )
+    outcomes = OutcomeSet(
+        entity="Corp", capability="AI",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="A",
+                trajectory=Trajectory(scenario_name="A", summary="A", grounded_in="A: A"),
+                risk_factors=[RiskFactor(scenario_name="A", factor_name="R1", description="D1")]
+            ),
+            OutcomeProjection(
+                scenario_name="B",
+                trajectory=Trajectory(scenario_name="B", summary="B", grounded_in="B: B"),
+                risk_factors=[RiskFactor(scenario_name="B", factor_name="R2", description="D2")]
+            )
+        ]
+    )
+    diagnoses = DiagnosisSet(
+        entity="Corp", capability="AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="A",
+                dependencies=[LockInDependency(scenario_name="A", dependency_name="D", lock_in_type="T", description="D")],
+                failure_modes=[], severity_scores=[]
+            ),
+            DependencyDiagnosis(
+                scenario_name="B",
+                dependencies=[LockInDependency(scenario_name="B", dependency_name="D", lock_in_type="T", description="D")],
+                failure_modes=[], severity_scores=[]
+            )
+        ]
+    )
+    verdict = OrchestratorVerdict(
+        entity="Corp", capability="AI", recommended_path="A", verdict_summary="V", key_recommendations=["K"],
+        cross_path_comparison=CrossPathComparison(
+            comparative_narrative="N",
+            path_comparisons=[
+                PathComparison(scenario_name="A", lock_in_count=1, max_severity_score=0.0, key_tradeoffs=[], path_summary="S"),
+                PathComparison(scenario_name="B", lock_in_count=1, max_severity_score=0.0, key_tradeoffs=[], path_summary="S")
+            ]
+        ),
+        explanation_trail=None
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=thin_scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=verdict):
+
+        from app.verification.recalibration import LoopGuard
+        # Custom loop guard allowing only 1 retry
+        guard = LoopGuard(max_retries=1)
+        
+        res = run_pipeline(
+            entity="Corp",
+            capability="AI",
+            options=["A", "B"],
+            loop_guard=guard
+        )
+        
+        # Pipeline didn't crash and produced a verdict
+        assert res.verdict is not None
+        
+        # Recalibration trail has the 1 attempted loop-back
+        assert len(res.recalibration_trail) == 1
+        assert res.recalibration_trail[0].from_stage == "stack_mapping"
+        assert res.recalibration_trail[0].to_stage == "ingestion"
+        
+        # The pipeline hit the cap on the next try and flagged it
+        assert len(res.partial_verdict_caveats) == 1
+        caveat = res.partial_verdict_caveats[0]
+        assert "stack_mapping → ingestion" in caveat
+        assert "cap=1" in caveat
+        assert "constrained recalibration" in caveat
