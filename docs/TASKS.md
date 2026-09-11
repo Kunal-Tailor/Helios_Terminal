@@ -192,7 +192,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 - [x] 8.2 — Vite + React 18 scaffold, Tailwind config, `site-theme.css` design tokens per `05_DESIGN_SYSTEM.md`; confirm `npm run dev` runs
   Commit: `Update - 8.2 - Vite scaffold, Tailwind, and site design tokens`
-- [ ] 8.3 — Routing skeleton (`/`, `/architecture`, `/about`, `/team`, placeholder `/dashboard`) + shared `SiteHeader`, `SiteFooter`, and `Button` components per `06_COMPONENT_BREAKDOWN.md`
+- [x] 8.3 — Routing skeleton (`/`, `/architecture`, `/about`, `/team`, placeholder `/dashboard`) + shared `SiteHeader`, `SiteFooter`, and `Button` components per `06_COMPONENT_BREAKDOWN.md`
   Commit: `Update - 8.3 - routing and shared header/footer/button`
 
 ### 8B — Home Page
