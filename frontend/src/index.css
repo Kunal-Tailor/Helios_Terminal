@@ -1,0 +1,13 @@
+@import "./site/site-theme.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--site-bg);
+  color: var(--site-text-primary);
+  font-family: var(--site-font-sans);
+}

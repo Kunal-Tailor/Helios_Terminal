@@ -6,7 +6,8 @@
 - Each task below is sized to be **one commit** — not a batch of commits, not a partial commit.
 - Do not start a task until the previous one is committed and (where applicable) passes its check.
 - Do not jump ahead to a later phase "while you're at it" — if a task in a later phase seems easier to do while working on the current one, note it here as a future task instead and stay on the current one.
-- Backend is built fully before frontend work begins (Phases 1–7 before Phase 8).
+- Backend is built fully before frontend work begins (Phases 1–7.5 before Phase 8).
+- Frontend is now split into two parts, built in order: Website Architecture (Phase 8) fully complete before Dashboard Architecture (Phase 9) begins, and Integration (Phase 10) only after both exist.
 - Check off tasks as `[x]` as you complete them so progress is resumable in a new session.
 
 **Commit message format:** `Update - <Phase>.<Task> - <description>`
@@ -181,36 +182,59 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
 
 ---
 
-## Phase 8 — Frontend Skeleton
+## Frontend, Part 1 — Website Architecture (Phase 8)
 
-- [ ] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
-  Commit: `Update - 8.1 - Vite + React scaffold`
-- [ ] 8.2 — Add Tailwind CSS config
-  Commit: `Update - 8.2 - Tailwind setup`
-- [ ] 8.3 — `lib/` — API client function to call the backend `/decisions` endpoint
-  Commit: `Update - 8.3 - API client for decisions endpoint`
+Context: the original unified dark-terminal frontend (old Phases 8–10 above) was reset — see `Update - 8.0 - reset frontend directory for full restart`. The frontend is now split into two builds sharing one Vite/React app: a light, static **marketing site** (this phase) and a dark, dense **Dashboard** (Phase 9, detailed later). Full spec lives in `docs/frontend-docs-website/` (all 9 files, already pushed — `Update - 8.1 - frontend-docs-website addition`) and `Helios-Terminal-Marketing-Site-Design-Spec.md`. Read the relevant `frontend-docs-website` file before implementing each task below.
 
-## Phase 9 — Frontend, One Component at a Time
+Each page is built in one pass rather than component-by-component — an IDE agent can assemble a full page from the screen inventory + design system docs in one go. Iteration on a page (if a first pass doesn't land right) gets added as its own follow-up task under that page's section once reviewed, rather than pre-planned here.
 
-- [ ] 9.1 — `pages/DecisionInput.tsx` — form to submit entity/capability/options (plain form, no styling polish yet)
-  Commit: `Update - 9.1 - decision input form`
-- [ ] 9.2 — Wire form submit to backend API client, show raw JSON response
-  Commit: `Update - 9.2 - wire input form to backend`
-- [ ] 9.3 — `components/verdict-panel/` — render the comparative verdict as a simple side-by-side layout
-  Commit: `Update - 9.3 - verdict panel component`
-- [ ] 9.4 — `components/dependency-graph/` — react-flow/D3 visualisation of dependency relationships
-  Commit: `Update - 9.4 - dependency graph visualisation`
-- [ ] 9.5 — `components/dashboard/` — assemble multi-pane terminal-style layout using the above components
-  Commit: `Update - 9.5 - multi-pane dashboard layout`
-- [ ] 9.6 — `components/command-bar/` — command-driven input UI (can be a stretch/polish task)
-  Commit: `Update - 9.6 - command bar UI`
+### 8A — Setup & Shared Components
 
-## Phase 10 — Integration & Polish
+- [x] 8.2 — Vite + React 18 scaffold, Tailwind config, `site-theme.css` design tokens per `05_DESIGN_SYSTEM.md`; confirm `npm run dev` runs
+  Commit: `Update - 8.2 - Vite scaffold, Tailwind, and site design tokens`
+- [ ] 8.3 — Routing skeleton (`/`, `/architecture`, `/about`, `/team`, placeholder `/dashboard`) + shared `SiteHeader`, `SiteFooter`, and `Button` components per `06_COMPONENT_BREAKDOWN.md`
+  Commit: `Update - 8.3 - routing and shared header/footer/button`
 
-- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered; commit any fixes found, described individually
-  Commit: `Update - 10.1 - end-to-end manual verification pass`
-- [ ] 10.2 — Styling pass to match Bloomberg-Terminal aesthetic (colors, density, typography)
-  Commit: `Update - 10.2 - terminal aesthetic pass`
+### 8B — Home Page
+
+- [ ] 8.4 — Build the full Home page in one pass — hero, problem teaser, pipeline strip, three pillars, Dashboard CTA band, wired to header/footer — per `04_SCREEN_INVENTORY.md`
+  Commit: `Update - 8.4 - home page`
+
+### 8C — Architecture Page
+
+- [ ] 8.5 — Build the full Architecture page in one pass — intro, pipeline diagram (forward + dashed recalibration edges), recalibration step sequence, tech stack strip, CTA
+  Commit: `Update - 8.5 - architecture page`
+
+### 8D — About Page
+
+- [ ] 8.6 — Build the full About page in one pass — editorial hero, narrative column, persona list, pull-quote, synopsis download card
+  Commit: `Update - 8.6 - about page`
+
+### 8E — Team Page
+
+- [ ] 8.7 — Build the full Team page in one pass — intro, four-card team grid, contribution note
+  Commit: `Update - 8.7 - team page`
+
+### 8F — Cross-Page Pass
+
+- [ ] 8.8 — Responsive, accessibility, and motion consistency pass across all four pages in one commit
+  Commit: `Update - 8.8 - website responsive, accessibility, and motion pass`
+
+**Checkpoint:** Website Architecture (Home, Architecture, About, Team) is complete, responsive, and accessible, with the Dashboard CTA wired to a placeholder route. This is the checkpoint before Dashboard Architecture work begins.
+
+---
+
+## Frontend, Part 2 — Dashboard Architecture (Phase 9)
+
+Not detailed yet. Will cover the dark terminal-style app itself (multi-pane dashboard, command bar, decision input, verdict panel, dependency graph, recalibration-trail display) once `docs/frontend-docs-dashboard/` is written, following the same page-by-page granular breakdown used in Phase 8. Do not begin this phase until the Phase 8 checkpoint above is signed off.
+
+---
+
+## Integration (Phase 10)
+
+Not detailed yet. Will cover wiring the Dashboard to the live backend `/decisions` endpoint (replacing the placeholder route from 8.3), end-to-end testing across the full site + Dashboard + backend, and any cross-cutting polish identified once both frontend parts exist. Detailed after Phase 9 is scoped.
+
+---
 
 ## Phase 11 — Deployment (last, not in parallel with feature work)
 
@@ -232,3 +256,4 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
 - Given the target of 50+ commits, most tasks above should map to **one commit each**, not be batched further — the list is already sized for that.
 - If a task still feels too large when you get to it, split it further in this file (e.g. `5.1a`, `5.1b`) before starting, rather than writing a large commit and describing it as several things at once.
 - Backend (Phases 1–7.5) is a hard gate before Phase 8 begins. Phase 7.5 was added after the Level 1 synopsis review to replace the sequential-only pipeline with a conditional, self-correcting one — see `ARCHITECTURE.md` §3.8 and §6.
+- The frontend restart follows the same discipline in three ordered parts: Website Architecture (Phase 8, detailed above) → Dashboard Architecture (Phase 9, detailed once `frontend-docs-dashboard/` exists) → Integration (Phase 10, detailed once both parts exist). Each part gets its own checkpoint before the next begins, same pattern as Phase 7.5's checkpoint before Phase 8.

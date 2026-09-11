@@ -1,0 +1,31 @@
+/*
+  site-theme.css
+  Design tokens for Helios Terminal marketing website per docs/frontend-docs-website/05_DESIGN_SYSTEM.md
+*/
+
+:root,
+.theme-site {
+  /* Color Tokens */
+  --site-bg: #F7F3EE;
+  --site-surface: #EDE6DC;
+  --site-text-primary: #2A2724;
+  --site-text-secondary: #6B645C;
+  --site-border: #DDD5C9;
+  --site-accent: #3FA7B3;
+
+  /* Typography */
+  --site-font-serif: "Source Serif 4", Georgia, serif;
+  --site-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --site-font-mono: "IBM Plex Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Shape & Borders */
+  --site-radius: 8px;
+  --site-border-width: 0.5px;
+}
+
+.theme-site {
+  background-color: var(--site-bg);
+  color: var(--site-text-primary);
+  font-family: var(--site-font-sans);
+  min-height: 100vh;
+}
