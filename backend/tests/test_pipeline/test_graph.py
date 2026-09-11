@@ -40,7 +40,10 @@ def test_pipeline_graph_end_to_end_success():
     sample_scope = StackScope(
         entity="Indian Army signals division",
         capability="small language model for edge inference",
-        layers=[StackLayer(name="Model Weights", rationale="Small language model edge inference", evidence="Small language model edge inference requirements.")],
+        layers=[
+            StackLayer(name="Model Weights", rationale="Small language model edge inference", evidence="Small language model edge inference requirements."),
+            StackLayer(name="Inference Hardware", rationale="Edge inference requirements", evidence="Small language model edge inference requirements."),
+        ],
         links=[LayerLink(from_layer="Model Weights", to_layer="Inference Hardware", dependency_type="Hardware", description="Requires NPU")],
     )
 
@@ -239,7 +242,10 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
     sample_scope = StackScope(
         entity="Test Entity",
         capability="Test Cap",
-        layers=[StackLayer(name="Test Layer", rationale="Standard cloud infrastructure report for edge computing.", evidence="Standard cloud infrastructure report for edge computing.")],
+        layers=[
+            StackLayer(name="Test Layer", rationale="Standard cloud infrastructure report for edge computing.", evidence="Standard cloud infrastructure report for edge computing."),
+            StackLayer(name="Compute Layer", rationale="Standard cloud infrastructure report for edge computing.", evidence="Standard cloud infrastructure report for edge computing."),
+        ],
         links=[],
     )
 
@@ -265,8 +271,16 @@ def test_pipeline_verification_gating_flags_without_halt_when_disabled():
 
 def test_pipeline_run_alias():
     """Verify run function alias functions identically to run_pipeline."""
+    mock_scope = StackScope(
+        entity="Test Entity",
+        capability="Test Cap",
+        layers=[
+            StackLayer(name="L1", rationale="R1", evidence="E1"),
+            StackLayer(name="L2", rationale="R2", evidence="E2"),
+        ],
+    )
     with patch("app.agents.ingestion.ingestion_agent.run") as mock_ingest, \
-         patch("app.agents.stack_mapping.stack_mapping_agent.run"), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=mock_scope), \
          patch("app.agents.scenario_generation.scenario_generation_agent.run"), \
          patch("app.agents.outcome_prediction.outcome_prediction_agent.run"), \
          patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run"), \
@@ -330,4 +344,159 @@ def test_pipeline_reports_incomplete_run_on_upstream_api_failure():
             v.passed is False and "stage did not execute" in v.reason and v.agent_stage == "scenario_generation"
             for v in res.verification_results
         )
+
+
+def test_pipeline_stack_mapping_to_ingestion_fallback_fires_and_continues():
+    """Integration test: on insufficient layer mapping (<=1 layer), re-invoke Ingestion scoped to gap_description,
+    accumulate context, loop back to Stack-Mapping, and continue pipeline to verdict."""
+    initial_context = IngestionContext(
+        entity="Test Entity",
+        capability="edge computing",
+        options=["build", "buy"],
+        context_summary="Initial context about edge computing hardware. Fact: Edge device has limited NPU memory.",
+        key_facts=["Fact: Edge device has limited NPU memory."],
+        sources=["https://example.com/src1"],
+        raw_retrieved_content="Initial context about edge computing hardware. Fact: Edge device has limited NPU memory.",
+    )
+
+    re_ingest_context = IngestionContext(
+        entity="Test Entity",
+        capability="edge computing (Gap: Stack-Mapping produced only 1 surviving layer)",
+        options=["build", "buy"],
+        context_summary="Additional details about Model Weights and Fine-Tuning Pipeline. Fact: Model weights quantized for edge. Fact: Fine-tuning pipeline required.",
+        key_facts=["Fact: Model weights quantized for edge.", "Fact: Fine-tuning pipeline required."],
+        sources=["https://example.com/src2"],
+        raw_retrieved_content="Additional details about Model Weights and Fine-Tuning Pipeline. Fact: Model weights quantized for edge. Fact: Fine-tuning pipeline required.",
+    )
+
+    # 1st call to stack_mapping: 1 layer -> insufficient (triggers fallback)
+    thin_scope = StackScope(
+        entity="Test Entity",
+        capability="edge computing",
+        layers=[
+            StackLayer(
+                name="Hardware",
+                rationale="Hardware constraint",
+                evidence="Fact: Edge device has limited NPU memory.",
+            )
+        ],
+    )
+
+    # 2nd call to stack_mapping: 2 layers -> sufficient (continues forward)
+    sufficient_scope = StackScope(
+        entity="Test Entity",
+        capability="edge computing",
+        layers=[
+            StackLayer(
+                name="Hardware",
+                rationale="Hardware constraint",
+                evidence="Fact: Edge device has limited NPU memory.",
+            ),
+            StackLayer(
+                name="Model Weights",
+                rationale="Quantized weights needed",
+                evidence="Fact: Model weights quantized for edge.",
+            ),
+        ],
+    )
+
+    mock_scenarios = ScenarioSet(
+        entity="Test Entity",
+        capability="edge computing",
+        scenarios=[
+            Scenario(
+                name="Build",
+                option_name="build",
+                description="Hardware and Model Weights setup",
+                grounded_in="Hardware: Hardware constraint Fact: Edge device has limited NPU memory.",
+            )
+        ],
+    )
+
+    mock_outcomes = OutcomeSet(
+        entity="Test Entity",
+        capability="edge computing",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Build",
+                trajectory=Trajectory(
+                    scenario_name="Build",
+                    summary="Build trajectory",
+                    grounded_in="Build: Hardware and Model Weights setup",
+                ),
+                risk_factors=[RiskFactor(scenario_name="Build", factor_name="Risk", description="Risk desc")],
+            )
+        ],
+    )
+
+    mock_diagnoses = DiagnosisSet(
+        entity="Test Entity",
+        capability="edge computing",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Build",
+                dependencies=[LockInDependency(scenario_name="Build", dependency_name="Hardware", lock_in_type="Vendor", description="Lockin")],
+                failure_modes=[FailureMode(scenario_name="Build", dependency_name="Hardware", failure_mode_title="Fail", what_breaks="Breaks", trigger_condition="Trig", time_horizon="Short", grounded_in="Build: Build trajectory")],
+            )
+        ],
+    )
+
+    mock_verdict = OrchestratorVerdict(
+        entity="Test Entity",
+        capability="edge computing",
+        recommended_path="Build",
+        verdict_summary="Build verdict",
+        key_recommendations=["Rec 1"],
+        explanation_trail=ExplanationTrail(
+            summary="Trail",
+            steps=[AuditStep(stage="diagnosis", claim="Build Hardware", evidence="Evidence", grounded_in="Build Hardware: Fail Breaks Trig Short")],
+        ),
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", side_effect=[initial_context, re_ingest_context]) as mock_ingest, \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", side_effect=[thin_scope, sufficient_scope]) as mock_stack, \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=mock_scenarios) as mock_scenarios_run, \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=mock_outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=mock_diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=mock_verdict):
+
+        res = run_pipeline(
+            entity="Test Entity",
+            capability="edge computing",
+            options=["build", "buy"],
+        )
+
+        # 1. Pipeline succeeded all the way to verdict
+        assert res.verdict is not None
+        assert res.verdict.recommended_path == "Build"
+        assert res.verification_passed is True
+
+        # 2. Ingestion was called twice: initial + re-ingest scoped to gap
+        assert mock_ingest.call_count == 2
+        first_call = mock_ingest.call_args_list[0]
+        second_call = mock_ingest.call_args_list[1]
+        assert first_call.kwargs["capability"] == "edge computing"
+        assert "Gap: Stack-Mapping produced only 1 surviving layer" in second_call.kwargs["capability"]
+
+        # 3. Stack-mapping was called twice: initial thin + rerun with accumulated context
+        assert mock_stack.call_count == 2
+
+        # 4. Context was accumulated (both initial and re-ingested facts/sources present)
+        assert res.ingestion_context is not None
+        assert "Fact: Edge device has limited NPU memory." in res.ingestion_context.key_facts
+        assert "Fact: Model weights quantized for edge." in res.ingestion_context.key_facts
+        assert "https://example.com/src1" in res.ingestion_context.sources
+        assert "https://example.com/src2" in res.ingestion_context.sources
+
+        # 5. Recalibration trail recorded the loop-back
+        assert len(res.recalibration_trail) == 1
+        req = res.recalibration_trail[0]
+        assert req.from_stage == "stack_mapping"
+        assert req.to_stage == "ingestion"
+        assert req.reason == "insufficient"
+        assert req.iteration_count == 1
+        assert "surviving layer" in req.gap_description
+
+        # 6. Downstream stages continued and executed
+        mock_scenarios_run.assert_called_once()
 

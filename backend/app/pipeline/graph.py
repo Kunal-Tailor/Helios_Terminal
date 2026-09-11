@@ -59,6 +59,12 @@ from app.agents.scenario_generation import scenario_generation_agent
 from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
 from app.agents.stack_mapping import stack_mapping_agent
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
+from app.verification.recalibration import (
+    LoopGuard,
+    RecalibrationRequest,
+    accumulate_ingestion_context,
+    check_sufficiency_stack_mapping,
+)
 from app.verification.source_store import SourcedClaim, SourceStore
 from app.verification.verifier import VerificationResult, verify_stage
 
@@ -97,6 +103,8 @@ class PipelineResult:
         True if all verified claims met the verification threshold.
     verification_failed_stage:
         Name of the stage that failed verification, if halted or flagged.
+    recalibration_trail:
+        List of :class:`~app.verification.recalibration.RecalibrationRequest` records showing backward routes.
     """
 
     entity: str
@@ -112,6 +120,7 @@ class PipelineResult:
     verification_results: list[VerificationResult] = field(default_factory=list)
     verification_passed: bool = True
     verification_failed_stage: str | None = None
+    recalibration_trail: list[RecalibrationRequest] = field(default_factory=list)
 
 
 def run_pipeline(
@@ -120,8 +129,9 @@ def run_pipeline(
     options: list[str] | None = None,
     store: SourceStore | None = None,
     halt_on_verification_failure: bool = True,
+    loop_guard: LoopGuard | None = None,
 ) -> PipelineResult:
-    """Execute the sequential 6-stage AI sourcing decision pipeline with stage verification gating.
+    """Execute the 6-stage AI sourcing decision pipeline with stage verification and recalibration.
 
     Parameters
     ----------
@@ -143,6 +153,7 @@ def run_pipeline(
     """
     options_list = list(options) if options else []
     source_store = store if store is not None else SourceStore()
+    guard = loop_guard if loop_guard is not None else LoopGuard()
     result = PipelineResult(
         entity=entity,
         capability=capability,
@@ -206,36 +217,82 @@ def run_pipeline(
         return result
 
     # -----------------------------------------------------------------------
-    # Stage 2: Stack Mapping
+    # Stage 2: Stack Mapping (with Sufficiency Check & Ingestion Fallback)
     # -----------------------------------------------------------------------
     try:
-        result.stack_scope = stack_mapping_agent.run(
-            context=result.ingestion_context,
-        )
-        if not result.stack_scope or not result.stack_scope.layers:
-            result.verification_passed = False
-            result.verification_failed_stage = "stack_mapping"
-            reason = "stage did not execute: stack_mapping returned empty scope"
-            result.verification_results.append(
-                VerificationResult(
-                    passed=False,
-                    confidence=0.0,
-                    reason=reason,
-                    claim="Stage execution: stack_mapping",
-                    agent_stage="stack_mapping",
-                )
+        while True:
+            result.stack_scope = stack_mapping_agent.run(
+                context=result.ingestion_context,
             )
-            logger.warning("Pipeline halted at stage 'stack_mapping' due to empty output.")
-            return result
+            if not result.stack_scope or not result.stack_scope.layers:
+                result.verification_passed = False
+                result.verification_failed_stage = "stack_mapping"
+                reason = "stage did not execute: stack_mapping returned empty scope"
+                result.verification_results.append(
+                    VerificationResult(
+                        passed=False,
+                        confidence=0.0,
+                        reason=reason,
+                        claim="Stage execution: stack_mapping",
+                        agent_stage="stack_mapping",
+                    )
+                )
+                logger.warning("Pipeline halted at stage 'stack_mapping' due to empty output.")
+                return result
 
-        _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
-        vr_2 = verify_stage(source_store, "stack_mapping")
-        result.verification_results.extend(vr_2)
-        if halt_on_verification_failure and any(not v.passed for v in vr_2):
-            result.verification_passed = False
-            result.verification_failed_stage = "stack_mapping"
-            logger.warning("Pipeline halted at stage 'stack_mapping' due to verification failure.")
-            return result
+            _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
+            vr_2 = verify_stage(source_store, "stack_mapping")
+            result.verification_results.extend(vr_2)
+            if halt_on_verification_failure and any(not v.passed for v in vr_2):
+                result.verification_passed = False
+                result.verification_failed_stage = "stack_mapping"
+                logger.warning("Pipeline halted at stage 'stack_mapping' due to verification failure.")
+                return result
+
+            # Sufficiency check: Stack-Mapping -> Ingestion fallback
+            suff_sm = check_sufficiency_stack_mapping(result.stack_scope)
+            if not suff_sm.sufficient:
+                if not guard.cap_exceeded("stack_mapping", "ingestion"):
+                    iter_count = guard.record("stack_mapping", "ingestion")
+                    recal_req = RecalibrationRequest(
+                        from_stage="stack_mapping",
+                        to_stage="ingestion",
+                        reason="insufficient",
+                        gap_description=suff_sm.reason,
+                        iteration_count=iter_count,
+                    )
+                    result.recalibration_trail.append(recal_req)
+                    logger.info(
+                        "Recalibration triggered from 'stack_mapping' to 'ingestion' (iteration %d): %s",
+                        iter_count,
+                        suff_sm.reason,
+                    )
+                    # Re-invoke Ingestion scoped to gap_description
+                    re_ingest_ctx = ingestion_agent.run(
+                        entity=entity,
+                        capability=f"{capability} (Gap: {suff_sm.reason})",
+                        options=options_list,
+                    )
+                    result.ingestion_context = accumulate_ingestion_context(
+                        result.ingestion_context,
+                        re_ingest_ctx,
+                    )
+                    _register_ingestion_claims(re_ingest_ctx, source_store)
+                    vr_re = verify_stage(source_store, "ingestion")
+                    result.verification_results.extend(vr_re)
+                    if halt_on_verification_failure and any(not v.passed for v in vr_re):
+                        result.verification_passed = False
+                        result.verification_failed_stage = "ingestion"
+                        logger.warning("Pipeline halted during recalibration re-ingestion due to verification failure.")
+                        return result
+                    # Loop back and re-run stack_mapping with accumulated context
+                    continue
+                else:
+                    logger.warning(
+                        "Recalibration cap reached for stack_mapping -> ingestion (attempt %d). Continuing pipeline.",
+                        guard.iteration_count("stack_mapping", "ingestion"),
+                    )
+            break
     except RateLimitError as exc:
         logger.error("Rate limit error executing stage 'stack_mapping': %s", exc, exc_info=True)
         raise
