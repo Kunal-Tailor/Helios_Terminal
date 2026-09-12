@@ -207,7 +207,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ### 8D — About Page
 
-- [ ] 8.6 — Build the full About page in one pass — editorial hero, narrative column, persona list, pull-quote, synopsis download card
+- [x] 8.6 — Build the full About page in one pass — editorial hero, narrative column, persona list, pull-quote, synopsis download card
   Commit: `Update - 8.6 - about page`
 
 ### 8E — Team Page
