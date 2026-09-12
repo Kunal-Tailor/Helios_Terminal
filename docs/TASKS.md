@@ -212,7 +212,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ### 8E — Team Page
 
-- [ ] 8.7 — Build the full Team page in one pass — intro, four-card team grid, contribution note
+- [x] 8.7 — Build the full Team page in one pass — intro, four-card team grid, contribution note
   Commit: `Update - 8.7 - team page`
 
 ### 8F — Cross-Page Pass
