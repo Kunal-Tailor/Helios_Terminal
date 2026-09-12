@@ -202,7 +202,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ### 8C — Architecture Page
 
-- [ ] 8.5 — Build the full Architecture page in one pass — intro, pipeline diagram (forward + dashed recalibration edges), recalibration step sequence, tech stack strip, CTA
+- [x] 8.5 — Build the full Architecture page in one pass — intro, pipeline diagram (forward + dashed recalibration edges), recalibration step sequence, tech stack strip, CTA
   Commit: `Update - 8.5 - architecture page`
 
 ### 8D — About Page
