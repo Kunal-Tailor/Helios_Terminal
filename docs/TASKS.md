@@ -197,7 +197,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ### 8B — Home Page
 
-- [ ] 8.4 — Build the full Home page in one pass — hero, problem teaser, pipeline strip, three pillars, Dashboard CTA band, wired to header/footer — per `04_SCREEN_INVENTORY.md`
+- [x] 8.4 — Build the full Home page in one pass — hero, problem teaser, pipeline strip, three pillars, Dashboard CTA band, wired to header/footer — per `04_SCREEN_INVENTORY.md`
   Commit: `Update - 8.4 - home page`
 
 ### 8C — Architecture Page
