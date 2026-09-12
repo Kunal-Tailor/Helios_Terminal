@@ -11,3 +11,7 @@ html, body {
   color: var(--site-text-primary);
   font-family: var(--site-font-sans);
 }
+
+html {
+  scroll-behavior: smooth;
+}

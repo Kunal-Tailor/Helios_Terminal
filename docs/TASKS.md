@@ -217,7 +217,7 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ### 8F — Cross-Page Pass
 
-- [ ] 8.8 — Responsive, accessibility, and motion consistency pass across all four pages in one commit
+- [x] 8.8 — Responsive, accessibility, and motion consistency pass across all four pages in one commit
   Commit: `Update - 8.8 - website responsive, accessibility, and motion pass`
 
 **Checkpoint:** Website Architecture (Home, Architecture, About, Team) is complete, responsive, and accessible, with the Dashboard CTA wired to a placeholder route. This is the checkpoint before Dashboard Architecture work begins.

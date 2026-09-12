@@ -29,3 +29,35 @@
   font-family: var(--site-font-sans);
   min-height: 100vh;
 }
+
+.theme-site .site-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.theme-site .site-reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.theme-site :focus-visible {
+  outline: 2px solid var(--site-accent) !important;
+  outline-offset: 3px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-site *,
+  .theme-site *::before,
+  .theme-site *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .theme-site .site-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

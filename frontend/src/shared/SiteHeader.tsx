@@ -1,7 +1,7 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import { Button } from './Button';
-import { ArrowLeft, Terminal } from 'lucide-react';
+import { ArrowLeft, Menu, Terminal, X } from 'lucide-react';
 
 export interface SiteHeaderProps {
   variant?: 'light' | 'dark-collapsed';
@@ -9,6 +9,7 @@ export interface SiteHeaderProps {
 
 export const SiteHeader: React.FC<SiteHeaderProps> = ({ variant }) => {
   const location = useLocation();
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const isDashboard = variant ? variant === 'dark-collapsed' : location.pathname.startsWith('/dashboard');
 
   if (isDashboard) {
@@ -50,7 +51,7 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ variant }) => {
 
   return (
     <header className="sticky top-0 z-50 w-full bg-site-bg/95 backdrop-blur-sm border-b border-site-border transition-colors duration-200">
-      <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6">
         {/* Logo and Wordmark */}
         <Link to="/" className="flex items-center gap-2.5 group">
           <div className="w-7 h-7 rounded-site bg-site-surface border border-site-border flex items-center justify-center text-site-accent group-hover:border-site-accent transition-colors">
@@ -62,7 +63,7 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ variant }) => {
         </Link>
 
         {/* Navigation & Action */}
-        <div className="flex items-center gap-8">
+        <div className="flex items-center gap-4 sm:gap-8">
           <nav className="hidden md:flex items-center gap-6">
             {navLinks.map((item) => (
               <NavLink
@@ -83,11 +84,38 @@ export const SiteHeader: React.FC<SiteHeaderProps> = ({ variant }) => {
 
           <div className="flex items-center gap-3">
             <Button to="/dashboard" variant="primary" size="sm">
-              Enter Dashboard
+              <span className="hidden sm:inline">Enter Dashboard</span>
+              <span className="sm:hidden">Dashboard</span>
             </Button>
+            <button
+              type="button"
+              className="inline-flex h-9 w-9 items-center justify-center text-site-text-primary md:hidden"
+              aria-label={mobileNavOpen ? 'Close site navigation' : 'Open site navigation'}
+              aria-expanded={mobileNavOpen}
+              aria-controls="site-mobile-navigation"
+              onClick={() => setMobileNavOpen((open) => !open)}
+            >
+              {mobileNavOpen ? <X className="h-5 w-5" aria-hidden="true" /> : <Menu className="h-5 w-5" aria-hidden="true" />}
+            </button>
           </div>
         </div>
       </div>
+      <nav
+        id="site-mobile-navigation"
+        className={`${mobileNavOpen ? 'grid' : 'hidden'} border-t border-site-border bg-site-bg px-4 py-3 md:hidden`}
+        aria-label="Mobile site navigation"
+      >
+        {navLinks.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            onClick={() => setMobileNavOpen(false)}
+            className={({ isActive }) => `px-2 py-2 text-sm ${isActive ? 'font-semibold text-site-text-primary' : 'text-site-text-secondary'}`}
+          >
+            {item.name}
+          </NavLink>
+        ))}
+      </nav>
     </header>
   );
 };

@@ -33,7 +33,7 @@ export const Home: React.FC = () => {
       <main>
         <section className="flex min-h-[calc(80vh-4rem)] items-center px-6 py-20 sm:py-28">
           <div className="mx-auto max-w-3xl text-center">
-            <p className="mx-auto mb-7 w-max border-hairline border-site-border bg-site-surface px-3 py-1.5 font-mono text-[11px] uppercase tracking-[0.18em] text-site-text-secondary">
+            <p className="mx-auto mb-7 w-fit max-w-full border-hairline border-site-border bg-site-surface px-3 py-1.5 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-site-text-secondary">
               [ strategic autonomy / decision engine ]
             </p>
             <h1 className="font-serif text-5xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
