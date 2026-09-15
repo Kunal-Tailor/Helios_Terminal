@@ -12,6 +12,28 @@ import { useScrollReveal } from '../../shared/useScrollReveal';
 import { SiteHeader } from '../../shared/SiteHeader';
 import { SiteFooter } from '../../shared/SiteFooter';
 import { Button } from '../../shared/Button';
+import { Mermaid } from '../../shared/Mermaid';
+
+const pipelineChart = `
+graph LR
+    A["01<br/>Ingestion"] --> B["02<br/>Stack mapping"]
+    B --> C["03<br/>Scenario generation"]
+    C --> D["04<br/>Outcome prediction"]
+    D --> E["05<br/>Dependency diagnosis"]
+    E --> F["06<br/>Comparative verdict"]
+
+    B -.-> A
+    C -.-> B
+    D -.-> C
+    E -.-> D
+    F -.-> E
+`;
+
+const recalibrationChart = `
+graph LR
+    A["Step 01<br/>Sufficiency check"] --> B["Step 02<br/>Gap payload"]
+    B --> C["Step 03<br/>Bounded retry"]
+`;
 
 const stages = [
   {
@@ -77,9 +99,9 @@ export const Architecture: React.FC = () => {
     <div className="min-h-screen bg-site-bg text-site-text-primary flex flex-col font-sans selection:bg-site-accent/20">
       <SiteHeader />
 
-      <main ref={containerRef} className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 py-24 gap-32">
+      <main ref={containerRef} className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 py-12 gap-20">
         {/* Intro */}
-        <section className="max-w-[700px] mx-auto text-center flex flex-col items-center gap-6 pt-16">
+        <section className="max-w-[700px] mx-auto text-center flex flex-col items-center gap-6 mt-6">
           <span 
             className="hero-reveal inline-block px-3 py-1 rounded-site border border-site-border bg-site-surface text-site-text-secondary text-sm font-mono tracking-wider uppercase"
             style={{ '--reveal-delay': '0ms' } as React.CSSProperties}
@@ -105,9 +127,13 @@ export const Architecture: React.FC = () => {
           <div className="sr-only">
             Six stages: 1. Ingestion, 2. Stack mapping, 3. Scenario generation, 4. Outcome prediction, 5. Dependency diagnosis, 6. Comparative verdict. Verified handoffs connect stages forward. Dashed lines indicate backward recalibration loops.
           </div>
+
+          <div className="scroll-reveal w-full overflow-hidden bg-site-surface border border-site-border rounded-site py-8 px-4 flex justify-center">
+            <Mermaid chart={pipelineChart} />
+          </div>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6 xl:gap-8 relative">
-            {stages.map((stage, idx) => (
+            {stages.map((stage) => (
               <div key={stage.number} className="scroll-reveal relative flex flex-col h-full bg-site-surface border border-site-border rounded-site p-6 hover:-translate-y-1 transition-transform duration-300 group z-10">
                 <div className="flex items-start justify-between mb-8">
                   <span className="font-mono text-sm tracking-wider text-site-accent">{stage.number}</span>
@@ -115,28 +141,13 @@ export const Architecture: React.FC = () => {
                 </div>
                 <h3 className="text-lg font-semibold text-site-text-primary mb-3 leading-tight">{stage.title}</h3>
                 <p className="text-sm text-site-text-secondary leading-relaxed flex-1">{stage.description}</p>
-                
-                {/* Mobile / Tablet connection badge */}
-                {idx < stages.length - 1 && (
-                  <div className="mt-6 flex xl:hidden items-center text-xs font-mono tracking-wider text-site-accent opacity-80 uppercase">
-                    verified handoff <ArrowRight className="w-3 h-3 ml-2" />
-                  </div>
-                )}
-                
-                {/* Desktop forward connectors */}
-                {idx < stages.length - 1 && (
-                  <div className="hidden xl:flex absolute top-10 -right-8 w-8 items-center justify-center text-site-accent opacity-40 z-0">
-                    <div className="w-full h-px bg-site-accent" />
-                    <ArrowRight className="w-3 h-3 absolute -right-1.5 bg-site-bg" strokeWidth={3} />
-                  </div>
-                )}
               </div>
             ))}
           </div>
 
-          <div className="scroll-reveal flex items-center justify-center xl:justify-start gap-4 mt-4 px-6 text-sm text-site-text-secondary font-sans border-l-2 border-dashed border-site-border">
+          <div className="scroll-reveal flex items-center justify-center gap-4 mt-4 px-6 text-sm text-site-text-secondary font-sans border-t border-dashed border-site-border pt-6 max-w-fit mx-auto">
             <span className="inline-block border border-dashed border-site-text-secondary w-8" /> 
-            Dashed lines (implicit here for visual clarity) represent backward recalibration loops where insufficient context returns to an earlier stage.
+            Dashed lines represent backward recalibration loops where insufficient context returns to an earlier stage.
           </div>
         </section>
 
@@ -147,16 +158,16 @@ export const Architecture: React.FC = () => {
             <p className="scroll-reveal text-lg text-site-text-secondary max-w-2xl">When context is insufficient, the system follows a strict retry sequence to gather missing information before failing.</p>
           </header>
 
+          <div className="scroll-reveal w-full overflow-hidden bg-site-surface border border-site-border rounded-site py-8 px-4 flex justify-center">
+            <Mermaid chart={recalibrationChart} />
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full relative">
-            {recalibrationSteps.map((step, idx) => (
-              <div key={step.number} className="scroll-reveal flex flex-col gap-4 border-t-2 border-site-accent pt-6 relative">
+            {recalibrationSteps.map((step) => (
+              <div key={step.number} className="scroll-reveal flex flex-col gap-4 bg-site-bg border border-site-border p-6 rounded-site">
                 <span className="font-mono text-xs tracking-wider text-site-accent uppercase bg-site-surface px-2 py-1 rounded w-max">Step {step.number}</span>
                 <h3 className="text-xl font-semibold text-site-text-primary">{step.title}</h3>
                 <p className="text-site-text-secondary text-sm leading-relaxed">{step.description}</p>
-                {/* Desktop connection arrows between steps */}
-                {idx < recalibrationSteps.length - 1 && (
-                  <ArrowRight className="hidden md:block absolute top-0 -right-4 w-5 h-5 text-site-accent -translate-y-1/2 bg-site-bg px-1" />
-                )}
               </div>
             ))}
           </div>
