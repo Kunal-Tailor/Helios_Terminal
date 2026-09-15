@@ -1,190 +1,183 @@
-import React from 'react';
-import { ArrowRight, GitFork, RefreshCw, ScanSearch, ShieldCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { ArrowRight, GitFork, ShieldCheck, RefreshCw, ScanSearch } from 'lucide-react';
 import { SiteHeader } from '../../shared/SiteHeader';
 import { SiteFooter } from '../../shared/SiteFooter';
 import { Button } from '../../shared/Button';
-
-const pipelineStages = ['Ingest', 'Map stack', 'Generate', 'Predict', 'Diagnose', 'Verdict'];
-
-const pillars = [
-  {
-    icon: GitFork,
-    title: 'Decision-scoped',
-    description: 'Starts with the sourcing choice in front of you—not a generic technology forecast.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Verified',
-    description: 'Every stage keeps its claims grounded in traceable, cited source material.',
-  },
-  {
-    icon: RefreshCw,
-    title: 'Self-correcting',
-    description: 'When context is thin, targeted recalibration closes the gap before a verdict is made.',
-  },
-];
+import { useScrollReveal } from '../../shared/useScrollReveal';
 
 export const Home: React.FC = () => {
+  const revealRef = useScrollReveal();
+
   return (
-    <div className="theme-site min-h-screen bg-site-bg text-site-text-primary">
+    <div className="min-h-screen bg-site-bg text-site-text-primary font-sans flex flex-col">
       <SiteHeader />
 
-      <main>
-        <section className="flex min-h-[calc(80vh-4rem)] items-center px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="mx-auto mb-7 w-fit max-w-full border-hairline border-site-border bg-site-surface px-3 py-1.5 text-center font-mono text-[11px] uppercase tracking-[0.18em] text-site-text-secondary">
-              [ strategic autonomy / decision engine ]
-            </p>
-            <h1 className="font-serif text-5xl font-semibold leading-[1.02] tracking-[-0.035em] sm:text-6xl lg:text-7xl">
-              Build, buy, or outsource—
-              <span className="block">choose with the full picture.</span>
-            </h1>
-            <p className="mx-auto mt-7 max-w-2xl text-base leading-7 text-site-text-secondary sm:text-lg">
-              Helios Terminal turns a high-stakes AI sourcing decision into a verified,
-              comparative path forward—so capability today does not become dependency tomorrow.
-            </p>
-            <div className="mt-9 flex flex-col items-center justify-center gap-3 sm:flex-row">
-              <Button to="/dashboard" variant="primary" size="lg">
-                Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Button>
-              <Button to="/architecture" variant="secondary" size="lg">
-                See the architecture
-              </Button>
-            </div>
+      <main ref={revealRef} className="flex-1 flex flex-col">
+        {/* 2. Hero */}
+        <section className="w-full max-w-[760px] mx-auto px-6 pt-32 pb-24 text-center flex flex-col items-center justify-center min-h-[80vh]">
+          <div
+            className="hero-reveal text-site-accent font-mono text-sm tracking-wider mb-6"
+            style={{ '--reveal-delay': '0ms' } as React.CSSProperties}
+          >
+            [ strategic autonomy / decision engine ]
+          </div>
+          <h1
+            className="hero-reveal font-serif text-5xl md:text-6xl font-semibold leading-tight text-site-text-primary mb-6"
+            style={{ '--reveal-delay': '80ms' } as React.CSSProperties}
+          >
+            Build, buy, or outsource—<br />choose with the full picture.
+          </h1>
+          <p
+            className="hero-reveal font-sans text-lg md:text-xl text-site-text-secondary leading-relaxed mb-10 max-w-[640px]"
+            style={{ '--reveal-delay': '160ms' } as React.CSSProperties}
+          >
+            Helios Terminal turns a high-stakes AI sourcing decision into a verified, comparative path forward—so capability today does not become dependency tomorrow.
+          </p>
+          <div
+            className="hero-reveal flex flex-col sm:flex-row items-center gap-4"
+            style={{ '--reveal-delay': '240ms' } as React.CSSProperties}
+          >
+            <Button to="/dashboard" variant="primary">
+              Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+            </Button>
+            <Button to="/architecture" variant="secondary">
+              See the architecture
+            </Button>
           </div>
         </section>
 
-        <section className="border-y border-site-border px-6 py-20 sm:py-28">
-          <div className="mx-auto grid max-w-6xl items-center gap-14 lg:grid-cols-2 lg:gap-24">
+        {/* 3. Problem teaser */}
+        <section className="w-full max-w-6xl mx-auto px-6 py-24 scroll-reveal" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             <div>
-              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">
+              <div className="font-mono text-site-accent text-sm tracking-widest uppercase mb-4">
                 The decision beneath the decision
-              </p>
-              <h2 className="mt-4 max-w-lg font-serif text-4xl leading-tight tracking-[-0.025em] sm:text-5xl">
+              </div>
+              <h2 className="font-serif text-3xl md:text-4xl text-site-text-primary mb-6 leading-tight">
                 An AI choice changes more than the tool you use.
               </h2>
-              <div className="mt-6 max-w-xl space-y-4 text-base leading-7 text-site-text-secondary">
+              <div className="text-site-text-secondary space-y-4 font-sans text-lg leading-relaxed">
                 <p>
-                  Every sourcing path carries a different mix of capability, control, and future
-                  exposure. The trade-off is rarely visible in a feature comparison alone.
+                  Sourcing an AI capability isn't just a technical evaluation. It reshapes your intellectual property boundary, operational agility, and long-term risk profile.
                 </p>
                 <p>
-                  Helios maps the stack, compares plausible paths, and makes the dependencies
-                  behind each outcome explicit before they harden into lock-in.
+                  Helios Terminal models these trade-offs mathematically. It maps the cascading effects of building in-house, buying off-the-shelf, or outsourcing—empowering you to act with conviction.
                 </p>
               </div>
             </div>
-
-            <div className="mx-auto w-full max-w-md border-hairline border-site-border p-6 sm:p-9">
-              <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-site-text-secondary">
-                Three sourcing paths
-              </p>
-              <svg
-                className="mt-7 h-auto w-full"
-                viewBox="0 0 420 220"
-                role="img"
-                aria-labelledby="fork-diagram-title fork-diagram-description"
-              >
-                <title id="fork-diagram-title">A sourcing decision branches into three paths</title>
-                <desc id="fork-diagram-description">
-                  A central decision point branches to build in-house, buy a platform, or outsource
-                  a capability.
-                </desc>
-                <circle cx="74" cy="110" r="7" fill="var(--site-accent)" />
-                <path
-                  d="M82 110 H155 C185 110 184 42 218 42 H310 M155 110 H310 M155 110 C185 110 184 178 218 178 H310"
-                  fill="none"
-                  stroke="var(--site-accent)"
-                  strokeWidth="1.5"
-                />
-                <circle cx="322" cy="42" r="5" fill="var(--site-bg)" stroke="var(--site-accent)" strokeWidth="1.5" />
-                <circle cx="322" cy="110" r="5" fill="var(--site-bg)" stroke="var(--site-accent)" strokeWidth="1.5" />
-                <circle cx="322" cy="178" r="5" fill="var(--site-bg)" stroke="var(--site-accent)" strokeWidth="1.5" />
-                <text x="16" y="142" fill="var(--site-text-secondary)" fontFamily="var(--site-font-mono)" fontSize="11">decision</text>
-                <text x="342" y="46" fill="var(--site-text-primary)" fontFamily="var(--site-font-mono)" fontSize="12">BUILD</text>
-                <text x="342" y="114" fill="var(--site-text-primary)" fontFamily="var(--site-font-mono)" fontSize="12">BUY</text>
-                <text x="342" y="182" fill="var(--site-text-primary)" fontFamily="var(--site-font-mono)" fontSize="12">OUTSOURCE</text>
+            
+            <div className="border border-site-border rounded-site bg-site-surface p-8 relative flex justify-center items-center overflow-hidden aspect-video">
+              <svg width="400" height="240" viewBox="0 0 400 240" className="w-full h-full max-w-[400px]">
+                {/* Decision central point */}
+                <circle cx="80" cy="120" r="12" fill="var(--site-surface)" stroke="var(--site-accent)" strokeWidth="4" />
+                <text x="80" y="150" fill="var(--site-text-secondary)" fontFamily="var(--site-font-mono)" fontSize="12" textAnchor="middle">DECISION</text>
+                
+                {/* Paths */}
+                {/* BUILD path */}
+                <path d="M 92 120 C 150 120, 180 50, 240 50" fill="none" stroke="var(--site-accent)" strokeWidth="2" opacity="0.6" />
+                <circle cx="240" cy="50" r="8" fill="var(--site-accent)" />
+                <text x="256" y="54" fill="var(--site-text-primary)" fontFamily="var(--site-font-sans)" fontSize="14" fontWeight="bold">BUILD</text>
+                
+                {/* BUY path */}
+                <path d="M 92 120 C 150 120, 180 120, 240 120" fill="none" stroke="var(--site-accent)" strokeWidth="2" opacity="0.6" />
+                <circle cx="240" cy="120" r="8" fill="var(--site-accent)" />
+                <text x="256" y="124" fill="var(--site-text-primary)" fontFamily="var(--site-font-sans)" fontSize="14" fontWeight="bold">BUY</text>
+                
+                {/* OUTSOURCE path */}
+                <path d="M 92 120 C 150 120, 180 190, 240 190" fill="none" stroke="var(--site-accent)" strokeWidth="2" opacity="0.6" />
+                <circle cx="240" cy="190" r="8" fill="var(--site-accent)" />
+                <text x="256" y="194" fill="var(--site-text-primary)" fontFamily="var(--site-font-sans)" fontSize="14" fontWeight="bold">OUTSOURCE</text>
               </svg>
             </div>
           </div>
         </section>
 
-        <section className="px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
-            <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">Six-stage reasoning flow</p>
-                <h2 className="mt-3 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">From context to a grounded verdict.</h2>
+        {/* 4. Pipeline strip */}
+        <section className="w-full max-w-6xl mx-auto px-6 py-12 scroll-reveal" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
+          <Link to="/architecture" className="block group">
+            <div className="border border-site-border bg-site-surface rounded-site p-8 md:p-12 hover:border-site-accent transition-colors duration-300">
+              <div className="font-mono text-xs text-site-text-secondary uppercase mb-8 text-center group-hover:text-site-accent transition-colors duration-300">
+                Helios Terminal Analysis Pipeline — Click to see architecture
               </div>
-              <Button to="/architecture" variant="ghost" className="w-max text-sm">
-                Explore the full architecture <ArrowRight className="ml-1.5 h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
-
-            <Link
-              to="/architecture"
-              className="mt-10 block overflow-x-auto border-y border-site-border py-6 focus:outline-none focus:ring-1 focus:ring-site-accent"
-              aria-label="Explore the full six-stage Helios architecture"
-            >
-              <ol className="flex min-w-[700px] items-center justify-between gap-0">
-                {pipelineStages.map((stage, index) => (
-                  <React.Fragment key={stage}>
-                    <li className="flex w-24 flex-col gap-2">
-                      <span className="font-mono text-[10px] tracking-[0.12em] text-site-accent">0{index + 1}</span>
-                      <span className="text-sm font-medium text-site-text-primary">{stage}</span>
-                    </li>
-                    {index < pipelineStages.length - 1 && <span className="mx-3 h-px flex-1 bg-site-accent" aria-hidden="true" />}
-                  </React.Fragment>
+              <div className="relative flex flex-col md:flex-row justify-between items-center w-full">
+                {/* Connecting line (desktop) */}
+                <div className="hidden md:block absolute top-6 left-0 right-0 h-[2px] bg-site-accent opacity-30 -z-0"></div>
+                {/* Connecting line (mobile) */}
+                <div className="md:hidden absolute top-0 bottom-0 left-6 w-[2px] bg-site-accent opacity-30 -z-0"></div>
+                
+                {[
+                  { num: '01', label: 'Ingest' },
+                  { num: '02', label: 'Map stack' },
+                  { num: '03', label: 'Generate' },
+                  { num: '04', label: 'Predict' },
+                  { num: '05', label: 'Diagnose' },
+                  { num: '06', label: 'Verdict' }
+                ].map((step, idx) => (
+                  <div key={idx} className="relative z-10 flex flex-row md:flex-col items-center gap-4 md:gap-3 w-full md:w-auto py-4 md:py-0 bg-site-surface">
+                    <div className="w-12 h-12 rounded-full border-2 border-site-accent bg-site-surface flex items-center justify-center font-mono text-sm text-site-text-primary">
+                      {step.num}
+                    </div>
+                    <div className="font-sans font-medium text-site-text-primary">{step.label}</div>
+                  </div>
                 ))}
-              </ol>
-              <span className="sr-only">
-                The pipeline proceeds from ingestion through stack mapping, scenario generation,
-                outcome prediction, dependency diagnosis, and a comparative verdict.
-              </span>
-            </Link>
+              </div>
+            </div>
+          </Link>
+        </section>
+
+        {/* 5. Three pillars */}
+        <section className="w-full max-w-6xl mx-auto px-6 py-24">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="scroll-reveal border border-hairline border-site-border rounded-site bg-site-surface p-8 transition-transform duration-300 hover:-translate-y-1 hover:border-site-accent" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
+              <div className="w-12 h-12 rounded-full bg-site-accent/10 flex items-center justify-center text-site-accent mb-6">
+                <GitFork size={24} />
+              </div>
+              <h3 className="font-sans font-bold text-xl text-site-text-primary mb-3">Decision-scoped</h3>
+              <p className="font-sans text-site-text-secondary leading-relaxed">
+                Starts with the sourcing choice in front of you—not a generic technology forecast.
+              </p>
+            </div>
+
+            <div className="scroll-reveal border border-hairline border-site-border rounded-site bg-site-surface p-8 transition-transform duration-300 hover:-translate-y-1 hover:border-site-accent" style={{ '--reveal-delay': '200ms' } as React.CSSProperties}>
+              <div className="w-12 h-12 rounded-full bg-site-accent/10 flex items-center justify-center text-site-accent mb-6">
+                <ShieldCheck size={24} />
+              </div>
+              <h3 className="font-sans font-bold text-xl text-site-text-primary mb-3">Verified</h3>
+              <p className="font-sans text-site-text-secondary leading-relaxed">
+                Every stage keeps its claims grounded in traceable, cited source material.
+              </p>
+            </div>
+
+            <div className="scroll-reveal border border-hairline border-site-border rounded-site bg-site-surface p-8 transition-transform duration-300 hover:-translate-y-1 hover:border-site-accent" style={{ '--reveal-delay': '300ms' } as React.CSSProperties}>
+              <div className="w-12 h-12 rounded-full bg-site-accent/10 flex items-center justify-center text-site-accent mb-6">
+                <RefreshCw size={24} />
+              </div>
+              <h3 className="font-sans font-bold text-xl text-site-text-primary mb-3">Self-correcting</h3>
+              <p className="font-sans text-site-text-secondary leading-relaxed">
+                When context is thin, targeted recalibration closes the gap before a verdict is made.
+              </p>
+            </div>
           </div>
         </section>
 
-        <section className="border-t border-site-border px-6 py-20 sm:py-28">
-          <div className="mx-auto max-w-6xl">
-            <div className="max-w-2xl">
-              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">What makes Helios different</p>
-              <h2 className="mt-3 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">
-                A decision aid built for the consequences of a choice.
-              </h2>
+        {/* 6. Dashboard CTA band */}
+        <section className="w-full bg-site-surface mt-12 scroll-reveal relative" style={{ '--reveal-delay': '100ms' } as React.CSSProperties}>
+          <div className="max-w-4xl mx-auto px-6 py-24 text-center flex flex-col items-center">
+            <div className="text-site-accent mb-6">
+              <ScanSearch size={48} strokeWidth={1.5} />
             </div>
-            <div className="mt-10 grid gap-4 md:grid-cols-3">
-              {pillars.map(({ icon: Icon, title, description }) => (
-                <article key={title} className="border-hairline border-site-border p-6 transition-transform duration-300 hover:-translate-y-1">
-                  <Icon className="h-5 w-5 text-site-accent" strokeWidth={1.5} aria-hidden="true" />
-                  <h3 className="mt-8 text-base font-semibold">{title}</h3>
-                  <p className="mt-3 text-sm leading-6 text-site-text-secondary">{description}</p>
-                </article>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="relative overflow-hidden border-y border-site-border bg-site-surface px-6 py-20 text-center sm:py-24">
-          <div className="mx-auto max-w-2xl">
-            <ScanSearch className="mx-auto h-5 w-5 text-site-accent" strokeWidth={1.5} aria-hidden="true" />
-            <h2 className="mt-5 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">See the decision behind the decision.</h2>
-            <p className="mx-auto mt-5 max-w-xl text-base leading-7 text-site-text-secondary">
-              Open the Helios Terminal to examine sourcing paths, verify claims, and surface the
-              dependencies that should shape your next move.
+            <h2 className="font-serif text-4xl text-site-text-primary mb-6">
+              See the decision behind the decision.
+            </h2>
+            <p className="font-sans text-lg text-site-text-secondary mb-10 max-w-2xl">
+              Access the Helios Terminal dashboard to start modeling your AI sourcing decisions with empirical rigour.
             </p>
-            <div className="mt-8">
-              <Button to="/dashboard" variant="primary" size="lg">
-                Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
+            <Button to="/dashboard" variant="primary">
+              Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+            </Button>
           </div>
-          <div
-            className="absolute bottom-0 left-0 h-1 w-full"
-            style={{ background: 'linear-gradient(90deg, transparent, var(--site-text-primary), transparent)' }}
-            aria-hidden="true"
-          />
+          {/* Dark gradient sliver at the bottom */}
+          <div className="absolute bottom-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-site-text-primary to-transparent opacity-20"></div>
         </section>
       </main>
 

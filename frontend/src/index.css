@@ -4,14 +4,81 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------ */
+/* Base styles                                                         */
+/* ------------------------------------------------------------------ */
+
+html {
+  scroll-behavior: smooth;
+}
+
 html, body {
   margin: 0;
   padding: 0;
   background-color: var(--site-bg);
   color: var(--site-text-primary);
   font-family: var(--site-font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-html {
-  scroll-behavior: smooth;
+::selection {
+  background-color: var(--site-accent);
+  color: white;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scroll-reveal animation system                                      */
+/* Per 05_DESIGN_SYSTEM.md: "Scroll-triggered fade-up on section       */
+/* entry, ~300ms, fires once."                                         */
+/* ------------------------------------------------------------------ */
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: none;
+}
+
+.scroll-reveal.visible {
+  animation: fadeUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* Hero elements get a gentler entrance (above the fold, no scroll trigger) */
+.hero-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: fadeUp 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+
+/* ------------------------------------------------------------------ */
+/* Drop-cap for About page narrative                                   */
+/* ------------------------------------------------------------------ */
+
+.drop-cap::first-letter {
+  float: left;
+  font-family: var(--site-font-serif);
+  font-size: 4.25em;
+  line-height: 0.8;
+  margin-right: 0.08em;
+  margin-top: 0.05em;
+  color: var(--site-text-primary);
+  font-weight: 600;
 }
