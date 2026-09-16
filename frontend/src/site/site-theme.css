@@ -1,0 +1,63 @@
+/*
+  site-theme.css
+  Design tokens for Helios Terminal marketing website per docs/frontend-docs-website/05_DESIGN_SYSTEM.md
+*/
+
+:root,
+.theme-site {
+  /* Color Tokens */
+  --site-bg: #F7F3EE;
+  --site-surface: #EDE6DC;
+  --site-text-primary: #2A2724;
+  --site-text-secondary: #6B645C;
+  --site-border: #DDD5C9;
+  --site-accent: #3FA7B3;
+
+  /* Typography */
+  --site-font-serif: "Source Serif 4", Georgia, serif;
+  --site-font-sans: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --site-font-mono: "IBM Plex Mono", Menlo, Monaco, Consolas, monospace;
+
+  /* Shape & Borders */
+  --site-radius: 8px;
+  --site-border-width: 0.5px;
+}
+
+.theme-site {
+  background-color: var(--site-bg);
+  color: var(--site-text-primary);
+  font-family: var(--site-font-sans);
+  min-height: 100vh;
+}
+
+.theme-site .site-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 300ms ease-out, transform 300ms ease-out;
+}
+
+.theme-site .site-reveal.is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.theme-site :focus-visible {
+  outline: 2px solid var(--site-accent) !important;
+  outline-offset: 3px !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-site *,
+  .theme-site *::before,
+  .theme-site *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  .theme-site .site-reveal {
+    opacity: 1;
+    transform: none;
+  }
+}

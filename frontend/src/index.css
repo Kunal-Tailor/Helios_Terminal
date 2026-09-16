@@ -1,0 +1,58 @@
+@import "./site/site-theme.css";
+@import "./dashboard/styles/terminal.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* -----------------------------------------------------------------------
+   Dashboard dark-theme tokens
+   Shares --site-accent with the marketing site per 05_DESIGN_SYSTEM.md
+   ----------------------------------------------------------------------- */
+.theme-dashboard {
+  --dash-bg: #0E1013;
+  --dash-surface: #14171C;
+  --dash-surface-raised: #1A1F26;
+  --dash-text-primary: #E6EDF3;
+  --dash-text-secondary: #8B949E;
+  --dash-text-muted: #7D8590;
+  --dash-border: #23272F;
+  --dash-border-strong: #2D333B;
+  --dash-accent: var(--site-accent, #3FA7B3);
+  --dash-accent-hover: #56D4DD;
+  --dash-success: #3FB950;
+  --dash-danger: #F85149;
+  --dash-warning: #D29922;
+}
+
+/* Dashboard keyframe animations */
+@keyframes dash-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+@keyframes dash-scan {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes dash-fade-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.dash-animate-pulse { animation: dash-pulse 2s ease-in-out infinite; }
+.dash-animate-scan { animation: dash-scan 2s ease-in-out infinite; }
+.dash-animate-in { animation: dash-fade-in 0.4s ease-out forwards; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background-color: var(--site-bg);
+  color: var(--site-text-primary);
+  font-family: var(--site-font-sans);
+}
+
+html {
+  scroll-behavior: smooth;
+}
