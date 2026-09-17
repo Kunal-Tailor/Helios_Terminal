@@ -1,29 +1,33 @@
 # frontend-docs-website
 
-Documentation for the **marketing site** only: Home, Architecture, About, Team.
-The Dashboard (the actual product) has its own dark terminal aesthetic and
-will get a separate `frontend-docs-dashboard` set later — don't pull design
-tokens or components from that effort into this one, they're deliberately
-different visual languages connected by a single shared accent color.
+Comprehensive documentation for the **Helios Terminal frontend application**, spanning the editorial marketing website (`/`, `/architecture`, `/about`, `/team`) and the Bloomberg-style sovereign intelligence dashboard (`/dashboard`).
 
-## Files
+---
 
-| File | Covers |
+## Documentation Index
+
+| File | Primary Coverage |
 | --- | --- |
-| `01_FRONTEND_VISION.md` | Purpose, audience, tone, relationship to the Dashboard |
-| `02_REQUIREMENTS_AND_FEATURES.md` | What each page must do, non-goals, responsiveness |
-| `03_UX_FLOWS.md` | How different visitors move through the site |
-| `04_SCREEN_INVENTORY.md` | Every page, section by section |
-| `05_DESIGN_SYSTEM.md` | Colors, type, spacing, motion — the tokens |
-| `06_COMPONENT_BREAKDOWN.md` | Reusable components and where each is used |
-| `07_API_CONTRACT.md` | Deliberately thin — the site is static |
-| `08_FRONTEND_ARCHITECTURE.md` | Folder structure, routing, how this coexists with the Dashboard build |
+| [`01_FRONTEND_VISION.md`](./01_FRONTEND_VISION.md) | Product purpose, target personas, tone, and the light-to-dark contrast philosophy |
+| [`02_REQUIREMENTS_AND_FEATURES.md`](./02_REQUIREMENTS_AND_FEATURES.md) | Functional requirements, live implementation status (FR-W1 to FR-W7), and accessibility |
+| [`03_UX_FLOWS.md`](./03_UX_FLOWS.md) | User journeys: marketing visitor flows and workstation operational workflows |
+| [`04_SCREEN_INVENTORY.md`](./04_SCREEN_INVENTORY.md) | Detailed section-by-section breakdown of all 4 marketing pages |
+| [`05_DESIGN_SYSTEM.md`](./05_DESIGN_SYSTEM.md) | Light theme tokens, typography, drop-cap rules, Mermaid theming, and reveal animations |
+| [`06_COMPONENT_BREAKDOWN.md`](./06_COMPONENT_BREAKDOWN.md) | Shared UI components (`SiteHeader`, `SiteFooter`, `Button`, `Mermaid`, `useScrollReveal`) and page structures |
+| [`07_API_CONTRACT.md`](./07_API_CONTRACT.md) | Full API contract: static assets plus live FastAPI endpoints (`/health`, `/decisions/async`, polling) |
+| [`08_FRONTEND_ARCHITECTURE.md`](./08_FRONTEND_ARCHITECTURE.md) | SPA architecture, directory tree, routing (`App.tsx`), theme scoping, and runtime diagram rendering |
+| [`09_DASHBOARD_WORKSTATION.md`](./09_DASHBOARD_WORKSTATION.md) | Complete guide to the Bloomberg-style decision workstation (`/dashboard`), components, views, audio, and fallback engine |
 
-## Status
+---
 
-Written fresh following the frontend-reset and the website-architecture
-discussion (light/warm site, contrast against a dark Dashboard, nav order
-`Home · Architecture · About · Team` with Dashboard as a separated CTA,
-Synopsis folded into About rather than its own page). Supersedes whatever
-was in the old `frontend-docs/` set for the website portion — that set
-covered a single unified dark app which is no longer the plan.
+## Current Implementation Summary
+
+1. **Unified Application Architecture:** Single Page App built using React 18, Vite 5, TypeScript 5, Tailwind CSS 3, and React Router v7.
+2. **Dual Theme Scoping:**
+   - `.theme-site` (`#F7F3EE` bone/sand) for public marketing and academic evaluation.
+   - `.theme-dashboard` (`#0E1013` charcoal/black) for the operational decision terminal.
+   - Connected by the signature `#3FA7B3` teal accent.
+3. **Dynamic Flowchart Generation:** Interactive runtime SVG diagrams powered by `Mermaid.js` with site-themed styling.
+4. **Motion & Accessibility:** Coordinated scroll reveals (`useScrollReveal`, `.hero-reveal`, `.scroll-reveal`) with full `@media (prefers-reduced-motion: reduce)` support.
+5. **Static Asset Distribution:** Direct download for `Helios-Terminal-Synopsis.docx` bundled under `frontend/public/assets/`.
+6. **Backend Integration & Resilience:** Full typed integration with FastAPI backend (`submitDecision`, `pollJobStatus`), reinforced by an offline client synthesis engine.

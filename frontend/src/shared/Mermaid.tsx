@@ -24,11 +24,11 @@ export const Mermaid: React.FC<{ chart: string; className?: string }> = ({ chart
   useEffect(() => {
     let isMounted = true;
     const id = `mermaid-chart-${Math.random().toString(36).substr(2, 9)}`;
-    mermaid.render(id, chart).then((result) => {
+    mermaid.render(id, chart).then((result: { svg: string }) => {
       if (isMounted) {
         setSvg(result.svg);
       }
-    }).catch(e => console.error(e));
+    }).catch((e: unknown) => console.error(e));
     return () => { isMounted = false; };
   }, [chart]);
 

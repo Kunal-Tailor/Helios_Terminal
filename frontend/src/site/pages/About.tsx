@@ -15,13 +15,13 @@ export const About: React.FC = () => {
         {/* Section 2: Editorial hero */}
         <section className="flex flex-col items-center justify-center min-h-[72vh] px-6 py-20 text-center">
           <div className="max-w-4xl w-full flex flex-col items-center gap-6">
-            <span 
+            <span
               className="hero-reveal font-mono text-sm tracking-wider text-site-text-secondary uppercase"
               style={{ '--reveal-delay': '100ms' } as React.CSSProperties}
             >
               The premise
             </span>
-            <h1 
+            <h1
               className="hero-reveal font-serif text-5xl md:text-6xl lg:text-7xl leading-tight text-site-text-primary"
               style={{ '--reveal-delay': '200ms' } as React.CSSProperties}
             >
@@ -94,7 +94,7 @@ export const About: React.FC = () => {
           <div className="scroll-reveal max-w-4xl w-full bg-site-surface border border-hairline border-site-border rounded-site p-12 md:p-20 text-center relative overflow-hidden flex flex-col items-center gap-8">
             <span className="absolute top-4 left-6 text-8xl md:text-9xl text-site-border opacity-20 font-serif leading-none select-none">"</span>
             <span className="absolute bottom-[-2rem] right-6 text-8xl md:text-9xl text-site-border opacity-20 font-serif leading-none select-none">"</span>
-            
+
             <p className="font-serif italic text-2xl md:text-4xl text-site-text-primary leading-snug relative z-10 max-w-2xl">
               A usable decision-support tool—and a repeatable method for forecasting AI dependency risk before it is locked in.
             </p>
@@ -110,7 +110,7 @@ export const About: React.FC = () => {
             <div className="p-4 bg-site-surface border border-site-border rounded-full group-hover:bg-site-bg transition-colors">
               <FileText className="w-8 h-8 text-site-text-secondary group-hover:text-site-accent transition-colors" />
             </div>
-            
+
             <div className="flex-1 flex flex-col gap-2 text-center md:text-left">
               <span className="font-mono text-xs tracking-wider text-site-text-secondary uppercase">
                 Project document / DOCX
@@ -123,9 +123,9 @@ export const About: React.FC = () => {
               </p>
             </div>
 
-            <Button 
-              variant="primary" 
-              href="/assets/Helios-Terminal-Synopsis.docx" 
+            <Button
+              variant="primary"
+              href="/assets/Helios-Terminal-Synopsis.docx"
               download={true}
               className="shrink-0 flex items-center gap-2"
             >
