@@ -1,44 +1,27 @@
-# 01 — Frontend vision (website)
+# 01 — Frontend vision (website & workstation)
 
 ## Purpose
 
-The website is the credibility layer in front of the product. Its job is
-to answer "what is this and should I trust it" in under 30 seconds, then
-get the visitor to one of two places: the Dashboard (if they want to use
-it) or the Synopsis (if they're evaluating it academically).
+The Helios Terminal frontend delivers a two-tier experience:
+1. **The Editorial Marketing Website (`/`, `/architecture`, `/about`, `/team`):** Acts as the institutional credibility layer. It articulates the problem of latent AI dependency, explains the six-agent architecture, presents the project team, and delivers the research synopsis in under 30 seconds.
+2. **The Terminal Workstation (`/dashboard`):** An operational, Bloomberg-inspired intelligence console where decision-makers run, analyze, and audit AI sourcing strategies in real time.
 
-## Audience
+## Target Audience
 
-- **Capstone evaluators / guide** — need credibility fast: clear problem
-  statement, a real architecture, a real team. Most likely to read About
-  and Architecture, and to want the Synopsis.
-- **Anyone finding it via GitHub/portfolio** — skims Home, checks Team.
-- **A hypothetical defence/gov/enterprise persona** — the site's tone
-  should hold up for this audience even though they're not the real MVP
-  users yet. This is why the language stays professional and restrained
-  rather than startup-casual.
+- **Capstone Evaluators & Technical Reviewers:** Require rapid academic credibility: structured problem statement, verifiable stage-gated architecture, transparent evaluation criteria, and a downloadable synopsis.
+- **Enterprise & Defense Leadership:** Sourcing decision-makers seeking defensible rationales to navigate the build vs buy vs outsource fork without getting locked into vendor traps.
+- **Open-Source & AI Researchers:** Interested in multi-agent orchestration, cross-stage claim verification, and sovereign AI dependency modeling.
 
-## Tone and brand
+## Visual Identity: The Light-to-Dark Contrast
 
-Minimalist, premium, editorial, restrained. Warm bone/sand light theme —
-not corporate blue, not stock-photo SaaS, not neon-tech. Whitespace and
-hairline borders carry the "premium" feeling; there's no decoration to
-fall back on, which is deliberate.
+The relationship between the website and the dashboard is built on **intentional contrast rather than uniform consistency**:
+- **Marketing Website:** Minimalist, warm bone/sand (`#F7F3EE`), generous whitespace, serif editorial typography (`Source Serif 4`), and hairline borders. Uncluttered, quiet, and reading-focused.
+- **Terminal Workstation:** High-density, dark command center (`#0E1013`), monospace data matrices (`IBM Plex Mono`), real-time telemetry, interactive network graphs, and tactile audio feedback.
+- **The Unifying Accent:** Both interfaces are anchored by the signature muted teal accent (`#3FA7B3`), ensuring a seamless identity transition when entering the product.
 
-## Relationship to the Dashboard
+## Key Frontend Objectives
 
-Contrast, not consistency. The website is light and spacious; the
-Dashboard is dark and dense. The single connective thread is the accent
-color (`#3FA7B3` teal) — quiet on the site, structural in the Dashboard.
-Clicking "Dashboard" should feel like a deliberate reveal, not a jarring
-theme switch — the same logo, the same accent, a completely different
-density of information.
-
-## Success criteria
-
-- A first-time visitor can state what the product does after reading only
-  the Home hero and subhead.
-- An evaluator can reach the Synopsis download in two clicks from any page.
-- The Dashboard CTA is visible without scrolling on every page.
-- Nothing on the site requires a login, a form submission, or live backend
-  data — it works as a static build.
+- **Fast Value Articulation:** A visitor understands what Helios Terminal achieves within 15 seconds of reading the Home hero.
+- **Auditable & Verifiable:** Every claim made in the pipeline can be traced back to its underlying evidence in the audit inspector.
+- **Instant Client Transitions:** Client-side SPA routing enables zero-latency transitions between public pages and the dashboard.
+- **Graceful Resilience:** The dashboard seamlessly communicates with the live FastAPI backend when online, and activates a deterministic synthesis engine when offline.

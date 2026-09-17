@@ -1,55 +1,103 @@
 # 05 — Design system (website)
 
-Scoped to the website only. The Dashboard has its own dark token set,
-defined separately, sharing only the accent color.
+Scoped to the marketing website. The Dashboard maintains its own dark terminal token set defined in `src/dashboard/styles/terminal.css`, sharing only the accent color.
 
-## Color
+## Color Tokens
 
-| Token | Value | Use |
-| --- | --- | --- |
-| `--site-bg` | `#F7F3EE` | Page background (warm bone/sand, not yellow) |
-| `--site-surface` | `#EDE6DC` | Cards, deeper bands |
-| `--site-text-primary` | `#2A2724` | Body/headline text (warm charcoal) |
-| `--site-text-secondary` | `#6B645C` | Supporting text |
-| `--site-border` | `#DDD5C9` | Hairline borders |
-| `--site-accent` | `#3FA7B3` | Single accent — CTAs, links, connecting lines. Shared with the Dashboard's accent. |
-
-One accent only. No secondary accent color — restraint is the design
-language here, not a second hue.
+| Token | Value | Tailwind Class | Use |
+| --- | --- | --- | --- |
+| `--site-bg` | `#F7F3EE` | `bg-site-bg` | Page canvas (warm bone/sand) |
+| `--site-surface` | `#EDE6DC` | `bg-site-surface` | Cards, bands, pill tags, diagram backgrounds |
+| `--site-text-primary` | `#2A2724` | `text-site-text-primary` | Body text, headlines (warm charcoal) |
+| `--site-text-secondary` | `#6B645C` | `text-site-text-secondary` | Supporting text, captions, metadata |
+| `--site-border` | `#DDD5C9` | `border-site-border` | Hairline borders (0.5px) |
+| `--site-accent` | `#3FA7B3` | `bg-site-accent`, `text-site-accent` | Muted teal accent — CTAs, links, flowchart edges |
 
 ## Typography
 
-| Role | Font | Used for |
-| --- | --- | --- |
-| Headline / editorial | Source Serif 4 | Hero headlines, About narrative, pull-quotes |
-| UI / body | Inter | Nav, buttons, body copy, cards |
-| Technical accent | IBM Plex Mono | Small tags/labels only — sparing, foreshadows the Dashboard |
+| Role | Font Family | Tailwind Class | Usage |
+| --- | --- | --- | --- |
+| Headline / Editorial | "Source Serif 4", Georgia, serif | `font-serif` | Hero headlines, About narrative, pull-quotes |
+| UI / Body | Inter, system-ui, sans-serif | `font-sans` | Body copy, navigation links, buttons, cards |
+| Technical Accent | "IBM Plex Mono", Menlo, monospace | `font-mono` | Stage tags, category labels, metrics, code snippets |
 
-## Spacing & shape
+### Editorial Styling: Drop Cap (`.drop-cap`)
+```css
+.drop-cap::first-letter {
+  float: left;
+  font-family: var(--site-font-serif);
+  font-size: 3.75rem;
+  line-height: 0.8;
+  padding-right: 0.6rem;
+  padding-top: 0.2rem;
+  color: var(--site-text-primary);
+  font-weight: 600;
+}
+```
 
-- Borders: `0.5px solid var(--site-border)` everywhere — no drop shadows.
-- Radius: 8px on cards/buttons, no pill shapes.
-- Whitespace does the "premium" work — err toward more, not less.
+## Motion System & Animation Classes
 
-## Motion
+### 1. Hero Reveal (`.hero-reveal`)
+Used on top-of-page headlines and intro copy to smoothly fade up upon initial mount:
+```css
+.hero-reveal {
+  opacity: 0;
+  transform: translateY(12px);
+  animation: hero-fade-up 600ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  animation-delay: var(--reveal-delay, 0ms);
+}
+```
 
-- Scroll-triggered fade-up on section entry, ~300ms, fires once.
-- Hover: 2–4px lift or a border/color shift only.
-- Exception: the Architecture pipeline diagram may trace its connecting
-  lines in on scroll-into-view, once, non-looping.
-- No parallax, no autoplay animation, no looping motion anywhere.
+### 2. Scroll-Triggered Reveal (`.scroll-reveal`)
+Triggered via `useScrollReveal` hook as elements enter the viewport:
+```css
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 500ms cubic-bezier(0.16, 1, 0.3, 1), transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--reveal-delay, 0ms);
+  will-change: opacity, transform;
+}
 
-## Buttons
+.scroll-reveal.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+```
 
-- **Primary** — solid `--site-accent` fill, used once per view max
-  (the Dashboard CTA). Never for secondary actions.
-- **Secondary** — outline, `--site-border` or accent-tinted border,
-  transparent fill.
-- **Ghost** — text-only, underline on hover.
+### 3. Reduced Motion
+Fully disabled when `prefers-reduced-motion: reduce` is detected:
+```css
+@media (prefers-reduced-motion: reduce) {
+  .theme-site .site-reveal,
+  .hero-reveal,
+  .scroll-reveal {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
+```
 
-## What not to do
+## Diagram Theming (Mermaid)
 
-No gradients (except the single dark sliver at the bottom of the Home
-Dashboard-CTA band, which is intentional and singular), no glow/neon, no
-stock photography, no corporate blue, no more than one filled-accent
-button visible per screen.
+Flowcharts in `src/shared/Mermaid.tsx` are initialized with brand design tokens:
+```typescript
+themeVariables: {
+  primaryColor: '#EDE6DC',        // --site-surface
+  primaryTextColor: '#2A2724',    // --site-text-primary
+  primaryBorderColor: '#DDD5C9',  // --site-border
+  lineColor: '#3FA7B3',           // --site-accent
+  secondaryColor: '#F7F3EE',      // --site-bg
+  tertiaryColor: '#F7F3EE',
+  fontFamily: '"Inter", sans-serif',
+}
+```
+
+## Button Variants (`Button.tsx`)
+
+- **Primary:** `bg-site-accent text-white hover:opacity-90 active:scale-[0.99]`
+- **Secondary:** `bg-transparent border border-site-border text-site-text-primary hover:border-site-text-secondary hover:bg-site-surface/50`
+- **Ghost:** `bg-transparent text-site-text-secondary hover:text-site-text-primary hover:underline`
+- **File Downloads:** Supports `download` prop on `href` targets, automatically bypassing `target="_blank"`.

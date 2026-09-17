@@ -6,6 +6,7 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
   size?: 'sm' | 'md' | 'lg';
   to?: string;
   href?: string;
+  download?: boolean | string;
   className?: string;
   children: React.ReactNode;
 }
@@ -15,6 +16,7 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'md',
   to,
   href,
+  download,
   className = '',
   children,
   ...rest
@@ -45,7 +47,13 @@ export const Button: React.FC<ButtonProps> = ({
 
   if (href) {
     return (
-      <a href={href} className={combinedStyles} target="_blank" rel="noopener noreferrer">
+      <a
+        href={href}
+        download={download}
+        className={combinedStyles}
+        target={download ? undefined : "_blank"}
+        rel={download ? undefined : "noopener noreferrer"}
+      >
         {children}
       </a>
     );

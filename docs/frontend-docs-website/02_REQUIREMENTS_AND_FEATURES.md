@@ -1,57 +1,41 @@
 # 02 — Requirements and features (website)
 
-## Pages in scope
+## Pages in Scope
 
-Home, Architecture, About, Team — four pages, plus a shared Header and
-Footer. Dashboard is a fifth destination but is out of scope for this doc
-(it's a route the site links to, not a page this doc designs).
+The marketing website consists of four public routes (`/`, `/architecture`, `/about`, `/team`), supported by a shared navigation header (`SiteHeader`) and footer (`SiteFooter`).
 
-## Navigation
+The decision intelligence terminal lives at `/dashboard` and is entered via persistent primary CTAs across all pages.
 
-- Order: `Home · Architecture · About · Team`
-- `Dashboard` is a separated, visually distinct CTA button — never inside
-  the nav link list.
-- Header is sticky on all four pages, no shadow on scroll, hairline
-  border-bottom only.
+## Navigation Structure
 
-## Synopsis
+- **Routes:**
+  - `/` → Home (`Home.tsx`)
+  - `/architecture` → Architecture (`Architecture.tsx`)
+  - `/about` → About (`About.tsx`)
+  - `/team` → Team (`Team.tsx`)
+  - `/dashboard` → Terminal Dashboard (`DashboardPlaceholder.tsx` / `dashboard/`)
+- **Primary CTA:** `Enter dashboard` is displayed as a prominent teal button separated from the standard link group.
+- **Header Behavior:** Sticky on all pages with backdrop blur (`backdrop-blur-sm`), no drop shadows, hairline border (`border-site-border`).
 
-Not a standalone page. Lives as a download card at the end of the About
-page. Optionally cross-linked (a small text link, not a duplicate card)
-from the end of the Architecture page.
+## Synopsis Delivery
 
-## Functional requirements
+The project research synopsis (`Helios-Terminal-Synopsis.docx`) is bundled statically under `frontend/public/assets/`. It is accessible via the synopsis download card on the `/about` page using an HTML5 `download` attribute trigger.
 
-| ID | Requirement | Page |
-| --- | --- | --- |
-| FR-W1 | Visible Dashboard CTA above the fold | All |
-| FR-W2 | Six-agent pipeline preview links through to Architecture | Home |
-| FR-W3 | Full pipeline + recalibration diagram | Architecture |
-| FR-W4 | Synopsis download (file link, opens/downloads the doc) | About |
-| FR-W5 | Four team member cards with role/contribution + GitHub or email link | Team |
-| FR-W6 | Footer present on every page with GitHub, institution line | All |
+## Functional Requirements & Live Implementation
 
-## Non-goals (for this build)
+| ID | Requirement | Implementation Status | Implementation Details |
+| --- | --- | --- | --- |
+| FR-W1 | Visible Dashboard CTA above the fold | Implemented | Sticky header button on all routes + large hero button on Home & Architecture. |
+| FR-W2 | Six-agent pipeline preview links to Architecture | Implemented | Horizontal preview strip on Home links each stage into `/architecture`. |
+| FR-W3 | Pipeline + recalibration diagram | Implemented | Runtime SVG rendering with `Mermaid.js` (`pipelineChart` and `recalibrationChart`), including `.sr-only` accessible text fallback. |
+| FR-W4 | Synopsis file download | Implemented | `<Button href="/assets/Helios-Terminal-Synopsis.docx" download={true}>` delivers the DOCX file directly. |
+| FR-W5 | Team member cards & roles | Implemented | 4 cards on `/team` with circular avatar initials, roles, and project GitHub links. |
+| FR-W6 | Consistent footer | Implemented | Shared `SiteFooter.tsx` on all 4 marketing pages with repository and synopsis links. |
+| FR-W7 | Scroll-triggered entrance animations | Implemented | `useScrollReveal` hook + `.hero-reveal` / `.scroll-reveal.visible` CSS classes with staggered delays. |
 
-- No authentication, no user accounts on the marketing site.
-- No forms, no lead capture, no analytics dashboard.
-- No CMS — page content is static/hardcoded, edited in source.
-- No live backend calls from the website itself. The only backend contact
-  anywhere in this experience is inside the Dashboard, documented
-  separately.
+## Accessibility Baseline
 
-## Responsiveness
-
-The website is responsive (mobile, tablet, desktop) — unlike the
-Dashboard, which is desktop-only by design (a dense terminal layout
-doesn't compress well). This is a deliberate difference: the site needs
-to work for someone opening a shared link on a phone; the Dashboard
-assumes someone sitting down to do analysis work.
-
-## Accessibility baseline
-
-- Semantic HTML landmarks (`header`, `nav`, `main`, `footer`).
-- Nav and CTAs fully keyboard-navigable, visible focus states.
-- Any diagram (pipeline strip, architecture flow) has an accessible text
-  equivalent, not just a visual.
-- Text contrast meets WCAG AA against the `#F7F3EE` base.
+- **Landmarks:** Structured semantic HTML (`header`, `nav`, `main`, `section`, `dl`, `dt`, `dd`, `footer`).
+- **Screen Reader Support:** Complex diagrams (e.g. Mermaid pipeline graph) include hidden `.sr-only` descriptive descriptions.
+- **Reduced Motion:** When `prefers-reduced-motion: reduce` is enabled, all animations, delays, and transitions are neutralized to instantaneous display.
+- **Contrast & Legibility:** Charcoal text (`#2A2724`) and secondary text (`#6B645C`) exceed WCAG AA contrast against `#F7F3EE` canvas.

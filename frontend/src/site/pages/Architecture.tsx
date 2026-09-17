@@ -1,180 +1,213 @@
 import React from 'react';
-import {
-  ArrowRight,
-  ChartNoAxesCombined,
-  CircleCheck,
-  Database,
-  Layers3,
-  Link2,
-  Route,
-  Scale,
+import { 
+  Database, 
+  Layers3, 
+  Route, 
+  ChartNoAxesCombined, 
+  Link2, 
+  Scale, 
+  CircleCheck, 
+  ArrowRight
 } from 'lucide-react';
+import { useScrollReveal } from '../../shared/useScrollReveal';
 import { SiteHeader } from '../../shared/SiteHeader';
 import { SiteFooter } from '../../shared/SiteFooter';
 import { Button } from '../../shared/Button';
+import { Mermaid } from '../../shared/Mermaid';
+
+const pipelineChart = `
+graph LR
+    A["01<br/>Ingestion"] --> B["02<br/>Stack mapping"]
+    B --> C["03<br/>Scenario generation"]
+    C --> D["04<br/>Outcome prediction"]
+    D --> E["05<br/>Dependency diagnosis"]
+    E --> F["06<br/>Comparative verdict"]
+
+    B -.-> A
+    C -.-> B
+    D -.-> C
+    E -.-> D
+    F -.-> E
+`;
+
+const recalibrationChart = `
+graph LR
+    A["Step 01<br/>Sufficiency check"] --> B["Step 02<br/>Gap payload"]
+    B --> C["Step 03<br/>Bounded retry"]
+`;
 
 const stages = [
-  { number: '01', title: 'Ingestion', description: 'Gathers only the context relevant to this decision.', icon: Database },
-  { number: '02', title: 'Stack mapping', description: 'Narrows the AI stack layers the choice touches.', icon: Layers3 },
-  { number: '03', title: 'Scenario generation', description: 'Sets out realistic sourcing paths to compare.', icon: Route },
-  { number: '04', title: 'Outcome prediction', description: 'Projects the plausible trajectory of each path.', icon: ChartNoAxesCombined },
-  { number: '05', title: 'Dependency diagnosis', description: 'Names the lock-in and exposure each outcome creates.', icon: Link2 },
-  { number: '06', title: 'Comparative verdict', description: 'Synthesises diagnoses into an auditable recommendation.', icon: Scale },
+  {
+    number: '01',
+    title: 'Ingestion',
+    icon: Database,
+    description: 'Gathers only the context relevant to this decision.',
+  },
+  {
+    number: '02',
+    title: 'Stack mapping',
+    icon: Layers3,
+    description: 'Narrows the AI stack layers the choice touches.',
+  },
+  {
+    number: '03',
+    title: 'Scenario generation',
+    icon: Route,
+    description: 'Sets out realistic sourcing paths to compare.',
+  },
+  {
+    number: '04',
+    title: 'Outcome prediction',
+    icon: ChartNoAxesCombined,
+    description: 'Projects the plausible trajectory of each path.',
+  },
+  {
+    number: '05',
+    title: 'Dependency diagnosis',
+    icon: Link2,
+    description: 'Names the lock-in and exposure each outcome creates.',
+  },
+  {
+    number: '06',
+    title: 'Comparative verdict',
+    icon: Scale,
+    description: 'Synthesises diagnoses into an auditable recommendation.',
+  }
 ];
 
 const recalibrationSteps = [
-  { number: '01', title: 'Sufficiency check', description: 'A stage asks whether it has enough grounded input to continue.' },
-  { number: '02', title: 'Gap payload', description: 'It names the specific missing context and the upstream owner.' },
-  { number: '03', title: 'Bounded retry', description: 'Context accumulates on a targeted re-run, capped at two retries.' },
+  {
+    number: '01',
+    title: 'Sufficiency check',
+    description: 'A stage asks whether it has enough grounded input to continue.',
+  },
+  {
+    number: '02',
+    title: 'Gap payload',
+    description: 'It names the specific missing context and the upstream owner.',
+  },
+  {
+    number: '03',
+    title: 'Bounded retry',
+    description: 'Context accumulates on a targeted re-run, capped at two retries.',
+  }
 ];
 
 export const Architecture: React.FC = () => {
+  const containerRef = useScrollReveal<HTMLDivElement>();
+
   return (
-    <div className="theme-site min-h-screen bg-site-bg text-site-text-primary">
+    <div className="min-h-screen bg-site-bg text-site-text-primary flex flex-col font-sans selection:bg-site-accent/20">
       <SiteHeader />
-      <main>
-        <section className="px-6 pb-20 pt-20 text-center sm:pb-28 sm:pt-28">
-          <div className="mx-auto max-w-3xl">
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">
-              Architecture / conditional graph
-            </p>
-            <h1 className="mt-5 font-serif text-5xl font-semibold leading-[1.04] tracking-[-0.035em] sm:text-6xl">
-              How Helios thinks through a sourcing decision.
-            </h1>
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-site-text-secondary sm:text-lg">
-              Six specialised agents turn a decision brief into a comparative verdict. Each handoff is
-              verified, and insufficient context loops back to the stage best placed to fill the gap.
-            </p>
-          </div>
+
+      <main ref={containerRef} className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 py-12 gap-20">
+        {/* Intro */}
+        <section className="max-w-[700px] mx-auto text-center flex flex-col items-center gap-6 mt-6">
+          <span 
+            className="hero-reveal inline-block px-3 py-1 rounded-site border border-site-border bg-site-surface text-site-text-secondary text-sm font-mono tracking-wider uppercase"
+            style={{ '--reveal-delay': '0ms' } as React.CSSProperties}
+          >
+            Architecture / conditional graph
+          </span>
+          <h1 
+            className="hero-reveal text-4xl md:text-5xl lg:text-6xl font-serif tracking-tight text-site-text-primary leading-tight"
+            style={{ '--reveal-delay': '100ms' } as React.CSSProperties}
+          >
+            How Helios thinks through a sourcing decision.
+          </h1>
+          <p 
+            className="hero-reveal text-lg md:text-xl text-site-text-secondary leading-relaxed"
+            style={{ '--reveal-delay': '200ms' } as React.CSSProperties}
+          >
+            Six specialised agents turn a decision brief into a comparative verdict. Each handoff is verified, and insufficient context loops back to the stage best placed to fill the gap.
+          </p>
         </section>
 
-        <section className="border-y border-site-border px-6 py-20 sm:py-24" aria-labelledby="pipeline-heading">
-          <div className="mx-auto max-w-7xl">
-            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-              <div>
-                <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">The pipeline</p>
-                <h2 id="pipeline-heading" className="mt-3 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">
-                  Six stages, one accountable trail.
-                </h2>
+        {/* Pipeline flow diagram */}
+        <section className="flex flex-col gap-12" aria-label="Pipeline Flow Diagram">
+          <div className="sr-only">
+            Six stages: 1. Ingestion, 2. Stack mapping, 3. Scenario generation, 4. Outcome prediction, 5. Dependency diagnosis, 6. Comparative verdict. Verified handoffs connect stages forward. Dashed lines indicate backward recalibration loops.
+          </div>
+
+          <div className="scroll-reveal w-full overflow-hidden bg-site-surface border border-site-border rounded-site py-8 px-4 flex justify-center">
+            <Mermaid chart={pipelineChart} />
+          </div>
+          
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6 xl:gap-8 relative">
+            {stages.map((stage) => (
+              <div key={stage.number} className="scroll-reveal relative flex flex-col h-full bg-site-surface border border-site-border rounded-site p-6 hover:-translate-y-1 transition-transform duration-300 group z-10">
+                <div className="flex items-start justify-between mb-8">
+                  <span className="font-mono text-sm tracking-wider text-site-accent">{stage.number}</span>
+                  <stage.icon className="w-5 h-5 text-site-accent" strokeWidth={1.5} />
+                </div>
+                <h3 className="text-lg font-semibold text-site-text-primary mb-3 leading-tight">{stage.title}</h3>
+                <p className="text-sm text-site-text-secondary leading-relaxed flex-1">{stage.description}</p>
               </div>
-              <p className="max-w-xs text-sm leading-6 text-site-text-secondary">
-                Solid lines move verified work forward. Dashed lines carry a targeted recalibration request backward.
-              </p>
-            </div>
+            ))}
+          </div>
 
-            <div className="relative mt-12">
-              <svg
-                className="pointer-events-none absolute inset-x-0 top-0 hidden h-[330px] w-full xl:block"
-                viewBox="0 0 1200 330"
-                preserveAspectRatio="none"
-                aria-hidden="true"
-              >
-                <defs>
-                  <marker id="forward-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                    <path d="M0,0 L8,4 L0,8" fill="var(--site-accent)" />
-                  </marker>
-                  <marker id="backward-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-                    <path d="M0,0 L8,4 L0,8" fill="var(--site-accent)" />
-                  </marker>
-                </defs>
-                <path d="M190 77 H202 M392 77 H404 M594 77 H606 M796 77 H808 M998 77 H1010" fill="none" stroke="var(--site-accent)" strokeWidth="1.5" markerEnd="url(#forward-arrow)" />
-                <path d="M292 156 C292 215 108 215 108 156" fill="none" stroke="var(--site-accent)" strokeWidth="1.25" strokeDasharray="5 5" markerEnd="url(#backward-arrow)" />
-                <path d="M494 156 C494 245 108 245 108 156" fill="none" stroke="var(--site-accent)" strokeWidth="1.25" strokeDasharray="5 5" markerEnd="url(#backward-arrow)" />
-                <path d="M696 156 C696 275 494 275 494 156" fill="none" stroke="var(--site-accent)" strokeWidth="1.25" strokeDasharray="5 5" markerEnd="url(#backward-arrow)" />
-                <path d="M898 156 C898 305 696 305 696 156" fill="none" stroke="var(--site-accent)" strokeWidth="1.25" strokeDasharray="5 5" markerEnd="url(#backward-arrow)" />
-                <path d="M1092 156 C1092 325 898 325 898 156" fill="none" stroke="var(--site-accent)" strokeWidth="1.25" strokeDasharray="5 5" markerEnd="url(#backward-arrow)" />
-              </svg>
-
-              <ol className="relative z-10 grid gap-3 sm:grid-cols-2 xl:grid-cols-6">
-                {stages.map(({ number, title, description, icon: Icon }, index) => (
-                  <li key={title} className="bg-site-bg">
-                    <article className="flex min-h-40 flex-col border-hairline border-site-border p-5 transition-transform duration-300 hover:-translate-y-1">
-                      <div className="flex items-start justify-between gap-3">
-                        <span className="font-mono text-[10px] tracking-[0.14em] text-site-accent">{number}</span>
-                        <Icon className="h-4 w-4 text-site-accent" strokeWidth={1.5} aria-hidden="true" />
-                      </div>
-                      <h3 className="mt-7 text-sm font-semibold leading-5">{title}</h3>
-                      <p className="mt-2 text-xs leading-5 text-site-text-secondary">{description}</p>
-                      {index < stages.length - 1 && (
-                        <span className="mt-auto pt-4 font-mono text-[9px] uppercase tracking-[0.12em] text-site-text-secondary xl:hidden">
-                          verified handoff →
-                        </span>
-                      )}
-                    </article>
-                  </li>
-                ))}
-              </ol>
-            </div>
-
-            <div className="mt-8 border-l border-site-accent pl-4 text-sm leading-6 text-site-text-secondary xl:hidden">
-              Dashed backward paths represent targeted recalibration: insufficient context returns to a specific
-              earlier stage, is accumulated, and is retried no more than twice.
-            </div>
-            <p className="sr-only">
-              The pipeline proceeds from Ingestion to Stack Mapping, Scenario Generation, Outcome Prediction,
-              Dependency Diagnosis, and a Comparative Verdict. Stack Mapping can return to Ingestion;
-              Scenario Generation can return to Stack Mapping or Ingestion; Outcome Prediction can return to
-              Scenario Generation; Dependency Diagnosis can return to Outcome Prediction; and the final verdict
-              can return to Dependency Diagnosis when a path is incomplete.
-            </p>
+          <div className="scroll-reveal flex items-center justify-center gap-4 mt-4 px-6 text-sm text-site-text-secondary font-sans border-t border-dashed border-site-border pt-6 max-w-fit mx-auto">
+            <span className="inline-block border border-dashed border-site-text-secondary w-8" /> 
+            Dashed lines represent backward recalibration loops where insufficient context returns to an earlier stage.
           </div>
         </section>
 
-        <section className="px-6 py-20 sm:py-28" aria-labelledby="recalibration-heading">
-          <div className="mx-auto max-w-6xl">
-            <div className="max-w-2xl">
-              <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">The recovery path</p>
-              <h2 id="recalibration-heading" className="mt-3 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">
-                Recalibration keeps thin inputs from becoming thin answers.
-              </h2>
-              <p className="mt-5 text-base leading-7 text-site-text-secondary">
-                Verification asks whether a claim is grounded. Recalibration asks whether the stage received enough
-                information to do useful work at all. They are different checks, and both are necessary.
-              </p>
-            </div>
+        {/* Recalibration explainer */}
+        <section className="flex flex-col gap-12 items-center mx-auto max-w-5xl w-full border-t border-hairline border-site-border pt-16">
+          <header className="text-center">
+            <h2 className="scroll-reveal text-3xl font-serif text-site-text-primary mb-4">The recalibration sequence</h2>
+            <p className="scroll-reveal text-lg text-site-text-secondary max-w-2xl">When context is insufficient, the system follows a strict retry sequence to gather missing information before failing.</p>
+          </header>
 
-            <ol className="mt-11 grid gap-5 md:grid-cols-3">
-              {recalibrationSteps.map(({ number, title, description }, index) => (
-                <li key={title} className="relative border-t border-site-border pt-5">
-                  <span className="font-mono text-[10px] tracking-[0.14em] text-site-accent">{number}</span>
-                  {index < recalibrationSteps.length - 1 && <ArrowRight className="absolute right-0 top-5 hidden h-4 w-4 text-site-accent md:block" strokeWidth={1.25} aria-hidden="true" />}
-                  <h3 className="mt-5 text-base font-semibold">{title}</h3>
-                  <p className="mt-2 max-w-xs text-sm leading-6 text-site-text-secondary">{description}</p>
-                </li>
-              ))}
-            </ol>
+          <div className="scroll-reveal w-full overflow-hidden bg-site-surface border border-site-border rounded-site py-8 px-4 flex justify-center">
+            <Mermaid chart={recalibrationChart} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 w-full relative">
+            {recalibrationSteps.map((step) => (
+              <div key={step.number} className="scroll-reveal flex flex-col gap-4 bg-site-bg border border-site-border p-6 rounded-site">
+                <span className="font-mono text-xs tracking-wider text-site-accent uppercase bg-site-surface px-2 py-1 rounded w-max">Step {step.number}</span>
+                <h3 className="text-xl font-semibold text-site-text-primary">{step.title}</h3>
+                <p className="text-site-text-secondary text-sm leading-relaxed">{step.description}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="border-y border-site-border bg-site-surface px-6 py-8">
-          <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-            <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-site-text-secondary">Built with</p>
-            <ul className="flex flex-wrap gap-x-7 gap-y-3 font-mono text-xs tracking-[0.1em] text-site-text-primary">
-              {['React', 'FastAPI', 'LangGraph', 'DeepSeek V4 Flash'].map((technology) => (
-                <li key={technology} className="flex items-center gap-2">
-                  <CircleCheck className="h-3.5 w-3.5 text-site-accent" strokeWidth={1.5} aria-hidden="true" />
-                  {technology}
-                </li>
-              ))}
-            </ul>
+        {/* Tech stack strip */}
+        <section className="scroll-reveal w-full border-y border-site-border bg-site-surface py-6 px-6 sm:px-12 flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="font-mono text-sm text-site-text-secondary uppercase tracking-wider">
+            Built with
+          </div>
+          <div className="flex flex-wrap items-center justify-center gap-x-8 gap-y-4">
+            {['React', 'FastAPI', 'LangGraph', 'DeepSeek V4 Flash'].map(tech => (
+              <div key={tech} className="flex items-center gap-2 text-site-text-primary text-sm font-medium">
+                <CircleCheck className="w-4 h-4 text-site-accent" strokeWidth={1.5} />
+                {tech}
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="px-6 py-20 text-center sm:py-28">
-          <div className="mx-auto max-w-2xl">
-            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-site-accent">The interface for the verdict</p>
-            <h2 className="mt-4 font-serif text-4xl tracking-[-0.025em] sm:text-5xl">See it in action.</h2>
-            <p className="mt-5 text-base leading-7 text-site-text-secondary">
-              Move from the model of the system to the workspace where a decision becomes a comparative, sourced verdict.
-            </p>
-            <div className="mt-8">
-              <Button to="/dashboard" variant="primary" size="lg">
-                Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
-              </Button>
-            </div>
+        {/* CTA */}
+        <section className="flex flex-col items-center text-center max-w-[600px] mx-auto gap-6 pb-16">
+          <span className="scroll-reveal inline-block px-3 py-1 rounded-site border border-site-border bg-site-surface text-site-text-secondary text-sm font-mono tracking-wider uppercase">
+            The interface for the verdict
+          </span>
+          <h2 className="scroll-reveal text-3xl md:text-4xl font-serif tracking-tight text-site-text-primary">
+            See it in action.
+          </h2>
+          <p className="scroll-reveal text-lg text-site-text-secondary mb-2 leading-relaxed">
+            Move from the model of the system to the workspace where a decision becomes a comparative, sourced verdict.
+          </p>
+          <div className="scroll-reveal">
+            <Button to="/dashboard" variant="primary">
+              Enter dashboard <ArrowRight className="ml-2 h-4 w-4" aria-hidden="true" />
+            </Button>
           </div>
         </section>
       </main>
+
       <SiteFooter />
     </div>
   );
