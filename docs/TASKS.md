@@ -184,7 +184,7 @@ Context: Phases 1–7 gave every stage a **verification** gate (is this claim gr
 
 ## Frontend, Part 1 — Website Architecture (Phase 8)
 
-Context: the original unified dark-terminal frontend (old Phases 8–10 above) was reset — see `Update - 8.0 - reset frontend directory for full restart`. The frontend is now split into two builds sharing one Vite/React app: a light, static **marketing site** (this phase) and a dark, dense **Dashboard** (Phase 9, detailed later). Full spec lives in `docs/frontend-docs-website/` (all 9 files, already pushed — `Update - 8.1 - frontend-docs-website addition`) and `Helios-Terminal-Marketing-Site-Design-Spec.md`. Read the relevant `frontend-docs-website` file before implementing each task below.
+Context: the original unified dark-terminal frontend (old Phases 8–10 above) was reset — see `Update - 8.0 - reset frontend directory for full restart`. The frontend is now split into two builds sharing one Vite/React app: a light, static **marketing site** (this phase) and a dark, dense **Dashboard** (Phase 9, detailed later). Full spec lives in `docs/frontend-website-architecure/` (all 9 files) and `docs/frontend-website-architecure/Helios-Terminal-Marketing-Site-Design-Spec.md` (via `frontend-docs-website` at the time of commit `Update - 8.1 - frontend-docs-website addition`, now superseded). Read the relevant `frontend-website-architecure` file before implementing each task below.
 
 Each page is built in one pass rather than component-by-component — an IDE agent can assemble a full page from the screen inventory + design system docs in one go. Iteration on a page (if a first pass doesn't land right) gets added as its own follow-up task under that page's section once reviewed, rather than pre-planned here.
 
@@ -226,13 +226,101 @@ Each page is built in one pass rather than component-by-component — an IDE age
 
 ## Frontend, Part 2 — Dashboard Architecture (Phase 9)
 
-Not detailed yet. Will cover the dark terminal-style app itself (multi-pane dashboard, command bar, decision input, verdict panel, dependency graph, recalibration-trail display) once `docs/frontend-docs-dashboard/` is written, following the same page-by-page granular breakdown used in Phase 8. Do not begin this phase until the Phase 8 checkpoint above is signed off.
+Context: the Bloomberg-style decision intelligence workstation at `/dashboard`. Full spec lives in `docs/frontend-dashboard-architecture/` (all 9 files). Read the relevant doc before reviewing any task below. All tasks in this phase are complete — Kunal built the entire dashboard.
+
+### 9A — Foundation: Design Tokens + Folder Structure
+
+- [x] 9.1 — Create `frontend/src/dashboard/` folder structure (pages/, components/, api.ts, data/, utils/, styles/); add `terminal.css` with all `--bb-*` CSS custom property design tokens — backgrounds, borders, accent colors (amber `#FF9E00`, cyan `#00E5FF`, green `#00FF66`, red `#FF3366`, purple `#B388FF`), typography tokens, and component primitives (`.bloomberg-terminal`, `.bb-panel`, `.bb-panel-header`, `.bb-badge`, `.bb-button`, `.bb-scroll`, `.bb-ticker-track`, `.bb-live-indicator`, `.bb-scanline`); import in dashboard entry point
+  Commit: `Update - 9.1 - dashboard folder structure and terminal.css design tokens`
+
+### 9B — Navigation Shell
+
+- [x] 9.2 — Build `BloombergHeader.tsx` — top telemetry strip (brand link, health beacon using `isLiveServerConnected`, active preset badge, pipeline status badge with 5 states, sound toggle, dual UTC/local clock); `<GO>` command bar with autocomplete dropdown (13 command suggestions, filtered on input, dismissed by Escape, triggered by `/` or `Cmd+K` global hotkey); F1–F9 function key ribbon with per-tab color accents (amber/cyan/red/green/purple/amber/amber); live AI market ticker tape (`bb-ticker-track` 40s loop, pauses on hover); export `ActiveWorkstationTab` union type
+  Commit: `Update - 9.2 - BloombergHeader command bar, telemetry, and function key ribbon`
+
+### 9C — Decision Console
+
+- [x] 9.3 — Build `BloombergDecisionConsole.tsx` — institutional preset grid (3 presets, selected state with amber highlight + checkmark); entity input (field 01); capability input (field 02); sourcing paths chip list with add/remove (field 03, Enter key on add field); strategic constraints matrix — DATA SOVEREIGNTY toggle (CRITICAL/STANDARD/LOW, amber fill on active) and LATENCY/SLA toggle (SUB_20MS/BALANCED/BATCH, cyan fill on active); `EXECUTE SOURCING VERDICT <GO>` primary button with spinner during submission
+  Commit: `Update - 9.3 - BloombergDecisionConsole decision brief input form`
+
+### 9D — Agent Pipeline Topology
+
+- [x] 9.4 — Build `AgentPipelineTopology.tsx` — 6-stage sequential pipeline visualization: Ingestion → Stack Mapping → Scenario Generation → Outcome Prediction → Dependency Diagnosis → Comparative Verdict; per-stage verification result badges (pass/fail, confidence score) mapped from `verificationResults` prop by `agent_stage` field; recalibration loop-back arrows from `recalibrationTrail` prop; idle/processing/completed/failed state rendering
+  Commit: `Update - 9.4 - AgentPipelineTopology 6-stage visualization`
+
+### 9E — Institutional Verdict Panel
+
+- [x] 9.5 — Build `InstitutionalVerdictPanel.tsx` — empty state (Award icon, awaiting copy) when `verdict === null`; recommended path green-tinted banner; verdict summary narrative; path-by-path stances matrix (stance badge color: green for RECOMMENDED/OPTIMAL/ACCEPTABLE, red for CRITICAL/UNACCEPTABLE/HIGH RISK, amber otherwise); actionable implementation directives list; strategic caveats amber-tinted box; VERIFIED DECISION / PARTIAL VERIFICATION header badge based on `verificationPassed` prop
+  Commit: `Update - 9.5 - InstitutionalVerdictPanel sovereign recommendation display`
+
+### 9F — Trajectory Chart Panel
+
+- [x] 9.6 — Build `TrajectoryChartPanel.tsx` using Recharts — year-by-year (Y0–Y5) TCO line chart (three series: buildTco, buyTco, outsourceTco) and lock-in severity chart (three series: buildLockIn, buyLockIn, outsourceLockIn on 0–10 scale); comparative narrative from `cross_path_comparison.comparative_narrative`; per-path comparison summary cards from `cross_path_comparison.path_comparisons` (lock_in_count, max_severity_score, key_tradeoffs)
+  Commit: `Update - 9.6 - TrajectoryChartPanel Recharts 5-year TCO and lock-in charts`
+
+### 9G — Lock-In Matrix View
+
+- [x] 9.7 — Build `LockInMatrixView.tsx` — tabular heatmap of `lockInVectors` data; five lock-in dimensions as rows (e.g. Data Sovereignty, Model Weights Portability, Export Control, TCO Scalability, Talent Ownership); three sourcing path columns (Build, Buy, Outsource); per-cell severity score rendered as color-coded bar/badge (green 1–3, amber 4–6, red 7–10); criticalNotes rendered below each dimension row
+  Commit: `Update - 9.7 - LockInMatrixView layer-by-layer exposure heatmap`
+
+### 9H — Audit Inspector
+
+- [x] 9.8 — Build `AuditInspector.tsx` and `AuditTrail.tsx` — overall verification status banner (green PASSED / red FAILED AT STAGE); verification results table (per-stage: stage name, claim, confidence %, pass/fail badge, reason); explanation trail section (summary, step-by-step table with stage/claim/evidence and grounded/inference badge, sources list as links); recalibration trail cards (from_stage → to_stage, reason, gap_description, iteration_count)
+  Commit: `Update - 9.8 - AuditInspector and AuditTrail verification claim ledger`
+
+### 9I — Intel Feed Panel
+
+- [x] 9.9 — Build `IntelFeedPanel.tsx` — live intelligence feed panel rendering retrieved source items by type: Tavily web search (titles, URLs, relevance), HuggingFace Hub (model cards, license metadata), BIS Entity Lists (entity watch entries, jurisdiction flags); structured feed layout with source-type headers and item cards
+  Commit: `Update - 9.9 - IntelFeedPanel live intelligence source stream`
+
+### 9J — Global Map + Supply Chain Graph
+
+- [x] 9.10 — Build `BloombergGlobalMap.tsx` (interactive SVG world map — data center locations, semiconductor origins, vendor corporate jurisdictions, hover tooltips with jurisdiction details) and `BloombergSupplyChainGraph.tsx` (directed dependency graph — model weight providers, compute dependencies, vendor relationships; node colors by sovereignty risk tier; edge thickness by dependency weight)
+  Commit: `Update - 9.10 - BloombergGlobalMap and BloombergSupplyChainGraph`
+
+### 9K — Executive Dossier Modal
+
+- [x] 9.11 — Build `ExecutiveDossierModal.tsx` — full-viewport overlay (`z-50`); printable memo layout: HELIOS INTELLIGENCE // EXECUTIVE DECISION MEMO header, entity/capability/timestamp; recommended path; verdict summary; path stances table; key recommendations numbered list; caveats; verification status; close button (`onClose` prop); print-optimized layout suitable for browser print-to-PDF
+  Commit: `Update - 9.11 - ExecutiveDossierModal printable executive briefing`
+
+### 9L — API Client
+
+- [x] 9.12 — Build `frontend/src/dashboard/api.ts` — `API_BASE` from `import.meta.env.VITE_API_BASE_URL` with fallback to `http://127.0.0.1:8000`; full TypeScript interface suite mirroring live backend Pydantic schemas (`DecisionRequest`, `DecisionResponse`, `OrchestratorVerdict`, `CrossPathComparison`, `PathComparison`, `ExplanationTrail`, `AuditStep`, `VerificationResult`, `RecalibrationTrailItem`, `JobStatusResponse`); `submitDecision()` — `POST /decisions/async`; `pollJobStatus()` — `GET /decisions/jobs/{job_id}`; `submitDecisionSync()` — `POST /decisions` (test/fallback utility)
+  Commit: `Update - 9.12 - dashboard API client with typed async submit and polling`
+
+### 9M — Preset Scenarios + Offline Synthesis
+
+- [x] 9.13 — Build `frontend/src/dashboard/data/presetScenarios.ts` — `PresetScenario` interface (id, code, title, category, description, brief, result, trajectoryData, lockInVectors); three full institutional presets: DEF-SLM (Indian Army Signals Directorate — tactical edge SLM with 6-year trajectory data and 5 lock-in vectors), FIN-RAG (Global Tier-1 Investment Bank AMR Capital — financial RAG), MED-AI (MetroHealth Regional Hospital System — HIPAA clinical copilot); each preset has a complete pre-computed `DecisionResponse` with verdict, verification_results, explanation_trail, and recalibration_trail
+  Commit: `Update - 9.13 - preset scenarios data and offline synthesis fallback`
+
+### 9N — Dashboard Main Page (State Machine Wiring)
+
+- [x] 9.14 — Build `frontend/src/dashboard/pages/DashboardPlaceholder.tsx` — `WorkstationState` type; all state variables (activeTab, state, jobStatus, selectedPreset, result, error, isLiveServerConnected, dossierModalOpen, focusedQuadrant); mount health-check `useEffect` (`GET /health`); polling loop via `useRef<setInterval>` at `POLL_INTERVAL_MS = 2500` with cleanup; `handleSubmit` (submit → polling → completed/failed, offline fallback with 1200ms simulated delay and entity fuzzy-match); `handleSelectPreset`; `handleExecuteCommand` (full command routing for all 9 tabs + DEMO DEF/FIN/MED + CLEAR/RESET + HELP alert); render: `BloombergHeader`, 9 conditional views in `<main>`, footer strip, `ExecutiveDossierModal` overlay
+  Commit: `Update - 9.14 - DashboardPlaceholder state machine and full workstation wiring`
+
+### 9O — Terminal Audio Engine
+
+- [x] 9.15 — Build `frontend/src/dashboard/utils/terminalAudio.ts` — `TerminalAudioEngine` class with lazy `AudioContext` initialization (with `webkitAudioContext` Safari fallback and suspended-context resume); mute state loaded/persisted to `localStorage` key `helios_terminal_sound_muted`; four synthesized sounds: `playBlip()` (sine 880Hz→1200Hz, 40ms — focus/click/tab), `playGoCommand()` (square 520→780→1040Hz steps, 90ms — command submit), `playSuccessChime()` (sine D5/A5/D6 staggered 70ms, 180ms each — job completed), `playWarning()` (sawtooth 220→180Hz, 160ms — job failed); `toggleMute()` plays confirmation blip on unmute; exported singleton `terminalAudio`
+  Commit: `Update - 9.15 - terminalAudio Web Audio API sound effects engine`
+
+**Checkpoint:** Dashboard Architecture is complete — Bloomberg-style dark workstation at `/dashboard` with 9 workstation views (F1–F9), a `<GO>` command bar, 5-state async pipeline state machine, offline synthesis fallback, Recharts trajectory charts, lock-in matrix, grounded audit inspector, global infrastructure map, supply chain graph, executive dossier modal, and Web Audio API sound engine. All views are populated from preset data on first load. Full spec documented in `docs/frontend-dashboard-architecture/`.
 
 ---
 
 ## Integration (Phase 10)
 
-Not detailed yet. Will cover wiring the Dashboard to the live backend `/decisions` endpoint (replacing the placeholder route from 8.3), end-to-end testing across the full site + Dashboard + backend, and any cross-cutting polish identified once both frontend parts exist. Detailed after Phase 9 is scoped.
+Context: wiring the completed Dashboard (Phase 9) to the live backend, end-to-end testing, and cross-cutting polish. Tasks below are known but not yet started.
+
+- [x] 10.1 — Replace the Phase 8.3 placeholder `/dashboard` route with the real `Dashboard` component from `DashboardPlaceholder.tsx`; confirm the full site routes work together (`/`, `/architecture`, `/about`, `/team`, `/dashboard`)
+  Commit: `Update - 10.1 - wire live Dashboard component to /dashboard route`
+- [ ] 10.2 — Wire `VITE_API_BASE_URL` environment variable — create `.env.example` for frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`; confirm the dashboard uses the env var in both dev and production builds
+  Commit: `Update - 10.2 - VITE_API_BASE_URL env var wiring`
+- [ ] 10.3 — Serialize strategic constraints (Data Sovereignty weight, Latency/SLA tolerance) from `BloombergDecisionConsole` into the `DecisionRequest` body sent to `POST /decisions/async` — requires backend schema update if fields are not yet accepted
+  Commit: `Update - 10.3 - serialize strategic constraints into API request`
+- [ ] 10.4 — End-to-end integration test: submit a live brief from the Decision Console (F2) with the real backend running, verify the polling loop completes, the verdict populates all four quadrants, and the audit trail shows real grounded verification results
+  Commit: `Update - 10.4 - E2E integration test: dashboard to live backend`
+- [ ] 10.5 — Cross-cutting polish pass: verify the backend health beacon correctly reflects ONLINE/STANDALONE across different network states; confirm the offline fallback fires correctly when the backend is stopped mid-session; verify the Dossier modal prints cleanly in Chrome and Firefox
+  Commit: `Update - 10.5 - integration polish and offline fallback verification`
 
 ---
 
@@ -256,4 +344,4 @@ Not detailed yet. Will cover wiring the Dashboard to the live backend `/decision
 - Given the target of 50+ commits, most tasks above should map to **one commit each**, not be batched further — the list is already sized for that.
 - If a task still feels too large when you get to it, split it further in this file (e.g. `5.1a`, `5.1b`) before starting, rather than writing a large commit and describing it as several things at once.
 - Backend (Phases 1–7.5) is a hard gate before Phase 8 begins. Phase 7.5 was added after the Level 1 synopsis review to replace the sequential-only pipeline with a conditional, self-correcting one — see `ARCHITECTURE.md` §3.8 and §6.
-- The frontend restart follows the same discipline in three ordered parts: Website Architecture (Phase 8, detailed above) → Dashboard Architecture (Phase 9, detailed once `frontend-docs-dashboard/` exists) → Integration (Phase 10, detailed once both parts exist). Each part gets its own checkpoint before the next begins, same pattern as Phase 7.5's checkpoint before Phase 8.
+- The frontend restart follows the same discipline in three ordered parts: Website Architecture (Phase 8, detailed above) → Dashboard Architecture (Phase 9, documented in `docs/frontend-dashboard-architecture/`) → Integration (Phase 10, tasks listed above). Each part gets its own checkpoint before the next begins, same pattern as Phase 7.5's checkpoint before Phase 8.

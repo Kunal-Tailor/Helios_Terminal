@@ -1,0 +1,211 @@
+# TASKS.md — Helios Terminal Implementation Plan
+
+## How to use this file
+
+- Work **one task at a time**, top to bottom, phase by phase.
+- Each task below is sized to be **one commit** — not a batch of commits, not a partial commit.
+- Do not start a task until the previous one is committed and (where applicable) passes its check.
+- Do not jump ahead to a later phase "while you're at it" — if a task in a later phase seems easier to do while working on the current one, note it here as a future task instead and stay on the current one.
+- Backend is built fully before frontend work begins (Phases 1–7 before Phase 8).
+- Check off tasks as `[x]` as you complete them so progress is resumable in a new session.
+- Frontend tasks (Phase 8+) are specified in more detail in `docs/frontend-docs/` — read `docs/frontend-docs/README.md` first for the reading order. This file (`TASKS.md`) stays the single source of truth for commit sequencing; the frontend docs describe *what* each task builds, not *when*.
+
+**Commit message format:** `Update - <Phase>.<Task> - <description>`
+Example: `Update - 1.1 - initial repo scaffolding`
+
+---
+
+## Phase 1 — Repo Scaffolding (no logic yet)
+
+## Phase 1 — Repo Scaffolding (no logic yet)
+
+- [x] 1.1 — Initialise git repo, add `.gitignore` (Python + Node)
+  Commit: `Update - 1.1 - initial repo scaffolding`
+- [x] 1.2 — Add `README.md` with project name + one-line description only
+  Commit: `Update - 1.2 - add README`
+- [x] 1.3 — Create empty folder structure per `FOLDER_STRUCTURE.md` (folders + placeholder `.gitkeep` or empty `__init__.py` only — no code)
+  Commit: `Update - 1.3 - create folder structure`
+- [x] 1.4 — Copy `docs/` (the seven files already created) into the repo
+  Commit: `Update - 1.4 - add project docs`
+
+## Phase 2 — Backend Skeleton (no agents yet)
+
+- [x] 2.1 — `backend/requirements.txt` or `pyproject.toml` with FastAPI, uvicorn only
+  Commit: `Update - 2.1 - backend dependencies`
+- [x] 2.2 — `backend/app/main.py` — FastAPI app that starts and returns a health check
+  Commit: `Update - 2.2 - minimal FastAPI app`
+- [x] 2.3 — `backend/app/api/routes/health.py` — `GET /health` returns `{"status": "ok"}`; confirm `uvicorn app.main:app` runs locally and `/health` responds
+  Commit: `Update - 2.3 - health check endpoint`
+- [x] 2.4 — `backend/app/core/config.py` — environment/config loading (API keys via env vars, not hardcoded)
+  Commit: `Update - 2.4 - config loading via environment variables`
+- [x] 2.5 — `backend/tests/test_api/test_health.py` — one test for the health endpoint
+  Commit: `Update - 2.5 - health check test`
+
+## Phase 3 — LLM Client Wrapper (shared dependency for all agents)
+
+- [x] 3.1 — `backend/app/llm/client.py` — thin wrapper around Claude/GPT API call (single function: prompt in, text out); unit test with a mocked API response (no live call in CI)
+  Commit: `Update - 3.1 - LLM client wrapper`
+- [x] 3.2 — `backend/app/retrieval/web_search.py` — thin wrapper for retrieval/web-search augmentation
+  Commit: `Update - 3.2 - web search retrieval wrapper`
+- [x] 3.3 — Pin DeepSeek V4 Flash as the default model: set it in `backend/app/core/config.py` (env var default) and `.env.example`. No changes to the client wrapper's interface — this only sets which model it points to by default.
+  Commit: `Update - 3.3 - pin DeepSeek V4 Flash as default LLM`
+
+## Phase 4 — Verification Layer (build before agents depend on it)
+
+- [x] 4.1 — `backend/app/verification/source_store.py` — data structure to hold a claim + its cited source
+  Commit: `Update - 4.1 - source store structure`
+- [x] 4.2 — `backend/app/verification/verifier.py` — function that checks a claim against a source (start simple: presence/consistency check, not full semantic verification); unit tests for verifier with a known-good and known-bad claim/source pair
+  Commit: `Update - 4.2 - verification layer (claim-source checking)`
+
+## Phase 5 — Agents, One Sub-Agent at a Time
+
+Each of the six top-level agents is a **parent that orchestrates 2-3 sub-agents**, all running on DeepSeek V4 Flash via the Phase 3 client wrapper. Build sub-agents first, one at a time, then the parent that wires them together. Do not write two sub-agents (or a sub-agent + its parent) in the same commit, even if it feels efficient. The third sub-agent in each group is optional/stretch — skip it if you're short on time and let the parent do that step's work directly; note the skip in the parent's commit message if so.
+
+### 5A — Ingestion Agent
+
+- [x] 5.1 — `agents/ingestion/sub_agents/web_scraping_sub_agent.py` — pulls public info on entity/capability via web search; unit test (mocked search)
+  Commit: `Update - 5.1 - ingestion sub-agent: web scraping`
+- [x] 5.2 — `agents/ingestion/sub_agents/structured_source_sub_agent.py` — pulls from known structured sources (HF Hub, BIS Entity List, TPDi, market-share reports); unit test
+  Commit: `Update - 5.2 - ingestion sub-agent: structured source`
+- [x] 5.3 — (optional) `agents/ingestion/sub_agents/context_synthesis_sub_agent.py` — merges 5.1 + 5.2 outputs into structured context; unit test
+  Commit: `Update - 5.3 - ingestion sub-agent: context synthesis`
+- [x] 5.4 — `agents/ingestion/ingestion_agent.py` — parent: calls sub-agents above (parallel where independent), merges/returns structured context; unit + integration test
+  Commit: `Update - 5.4 - ingestion agent (parent)`
+
+### 5B — Stack-Mapping Agent
+
+- [x] 5.5 — `agents/stack_mapping/sub_agents/layer_identification_sub_agent.py` — proposes candidate AI-stack layers from context; unit test
+  Commit: `Update - 5.5 - stack-mapping sub-agent: layer identification`
+- [x] 5.6 — `agents/stack_mapping/sub_agents/relevance_filter_sub_agent.py` — narrows candidates to layers this decision touches; unit test
+  Commit: `Update - 5.6 - stack-mapping sub-agent: relevance filter`
+- [x] 5.7 — (optional) `agents/stack_mapping/sub_agents/dependency_linkage_sub_agent.py` — maps how surviving layers interconnect; unit test
+  Commit: `Update - 5.7 - stack-mapping sub-agent: dependency linkage`
+- [x] 5.8 — `agents/stack_mapping/stack_mapping_agent.py` — parent: orchestrates 5.5-5.7, returns stack scope; unit + integration test
+  Commit: `Update - 5.8 - stack-mapping agent (parent)`
+
+### 5C — Scenario-Generation Agent
+
+- [x] 5.9 — `agents/scenario_generation/sub_agents/option_enumeration_sub_agent.py` — generates raw candidate option set; unit test
+  Commit: `Update - 5.9 - scenario-generation sub-agent: option enumeration`
+- [x] 5.10 — `agents/scenario_generation/sub_agents/feasibility_check_sub_agent.py` — filters out unrealistic options (depends on 5.9's output); unit test
+  Commit: `Update - 5.10 - scenario-generation sub-agent: feasibility check`
+- [x] 5.11 — (optional) `agents/scenario_generation/sub_agents/scenario_refinement_sub_agent.py` — sharpens surviving options into full scenarios; unit test
+  Commit: `Update - 5.11 - scenario-generation sub-agent: scenario refinement`
+- [x] 5.12 — `agents/scenario_generation/scenario_generation_agent.py` — parent: orchestrates 5.9-5.11, returns option set; unit + integration test
+  Commit: `Update - 5.12 - scenario-generation agent (parent)`
+
+### 5D — Outcome-Prediction Agent
+
+- [x] 5.13 — `agents/outcome_prediction/sub_agents/trajectory_modeling_sub_agent.py` — projects forward path for each scenario; unit test
+  Commit: `Update - 5.13 - outcome-prediction sub-agent: trajectory modeling`
+- [x] 5.14 — `agents/outcome_prediction/sub_agents/risk_factor_sub_agent.py` — identifies events/conditions that could alter the trajectory; unit test
+  Commit: `Update - 5.14 - outcome-prediction sub-agent: risk factor`
+- [x] 5.15 — (optional) `agents/outcome_prediction/sub_agents/timeline_projection_sub_agent.py` — attaches time horizons to outcomes; unit test
+  Commit: `Update - 5.15 - outcome-prediction sub-agent: timeline projection`
+- [x] 5.16 — `agents/outcome_prediction/outcome_prediction_agent.py` — parent: orchestrates 5.13-5.15, returns projected outcomes; unit + integration test
+  Commit: `Update - 5.16 - outcome-prediction agent (parent)`
+
+### 5E — Dependency-Diagnosis Agent
+
+- [x] 5.17 — `agents/dependency_diagnosis/sub_agents/lock_in_identification_sub_agent.py` — names the specific dependency per outcome; unit test
+  Commit: `Update - 5.17 - dependency-diagnosis sub-agent: lock-in identification`
+- [x] 5.18 — `agents/dependency_diagnosis/sub_agents/failure_mode_sub_agent.py` — explains what breaks later if unmanaged; unit test
+  Commit: `Update - 5.18 - dependency-diagnosis sub-agent: failure mode`
+- [x] 5.19 — (optional) `agents/dependency_diagnosis/sub_agents/severity_scoring_sub_agent.py` — scores severity/urgency per dependency; unit test
+  Commit: `Update - 5.19 - dependency-diagnosis sub-agent: severity scoring`
+- [x] 5.20 — `agents/dependency_diagnosis/dependency_diagnosis_agent.py` — parent: orchestrates 5.17-5.19, returns diagnoses; unit + integration test
+  Commit: `Update - 5.20 - dependency-diagnosis agent (parent)`
+
+### 5F — Orchestrator Agent
+
+- [x] 5.21 — `agents/orchestrator/sub_agents/cross_path_comparison_sub_agent.py` — compares diagnoses across all paths; unit test
+  Commit: `Update - 5.21 - orchestrator sub-agent: cross-path comparison`
+- [x] 5.22 — `agents/orchestrator/sub_agents/verdict_synthesis_sub_agent.py` — produces final comparative verdict text; unit test
+  Commit: `Update - 5.22 - orchestrator sub-agent: verdict synthesis`
+- [x] 5.23 — (optional) `agents/orchestrator/sub_agents/explanation_trail_sub_agent.py` — assembles source-grounded reasoning trail; unit test
+  Commit: `Update - 5.23 - orchestrator sub-agent: explanation trail`
+- [x] 5.24 — `agents/orchestrator/orchestrator_agent.py` — parent: orchestrates 5.21-5.23, returns comparative verdict; unit + integration test
+  Commit: `Update - 5.24 - orchestrator agent (parent)`
+
+## Phase 6 — Pipeline Wiring
+
+- [x] 6.1 — `pipeline/graph.py` — wire agents together in sequence WITHOUT verification gating first (get the happy path working end-to-end); integration test on one sample decision brief, mocked LLM responses
+  Commit: `Update - 6.1 - wire agents into sequential pipeline (no gating yet)`
+- [x] 6.2 — Add verification gate between each agent handoff (reuse Phase 4 verifier); update integration test to confirm a bad/unverified claim halts or flags the pipeline
+  Commit: `Update - 6.2 - add stage-gated verification between agents`
+
+## Phase 7 — API Layer & Pipeline Verification Hardening (expose the pipeline)
+
+- [x] 7.1 — `api/schemas/` — pydantic models for decision brief request + verdict response
+  Commit: `Update - 7.1 - request/response schemas`
+- [x] 7.2 — `api/routes/decisions.py` — `POST /decisions` accepts a brief, runs pipeline synchronously, returns verdict; integration test hitting the endpoint end-to-end (mocked LLM)
+  Commit: `Update - 7.2 - decisions endpoint wired to pipeline`
+- [x] 7.3 — (Optional, only if needed) add async/background job handling if pipeline runtime is too long for a synchronous request
+  Commit: `Update - 7.3 - async decision processing`
+- [x] 7.4 — Verification hardening: chained grounded vs. inference claim registration across all 6 stages, verifier matching normalizations (hyphens, commas, Indian number terms), and incomplete run reporting; full backend end-to-end verification
+  Commit: `Update - 7.4 - backend verification and chained pipeline hardening`
+
+**Checkpoint:** Backend is functionally complete and testable via curl/Postman before any frontend work starts.
+
+---
+
+## Phase 8 — Frontend Skeleton
+
+- [ ] 8.1 — `frontend/` — Vite + React 18 app, default starter page only; confirm `npm run dev` runs
+  Commit: `Update - 8.1 - Vite + React scaffold`
+- [ ] 8.2 — Add Tailwind CSS config; define the `05_DESIGN_SYSTEM.md` color/type tokens as CSS custom properties and wire them into `tailwind.config.js` (tokens only — no component styling yet)
+  Commit: `Update - 8.2 - Tailwind setup with design tokens`
+- [ ] 8.3 — Resolve `07_API_CONTRACT.md`'s sync checklist against the real backend schemas (confirm field names, confirm sync-vs-async response pattern per Phase 7.3), then build `lib/` — API client function to call `POST /decisions`
+  Commit: `Update - 8.3 - API client for decisions endpoint`
+
+## Phase 9 — Frontend, One Flow Deep First
+
+Build the Decision Input → Result View flow completely (9.1–9.3) before touching the Dashboard or dependency graph — see `docs/frontend-docs/03_UX_FLOWS.md` (Flow A) and `04_SCREEN_INVENTORY.md` for the full spec of each screen below.
+
+- [ ] 9.1 — `components/decision-input/DecisionInputForm.tsx` + `OptionChipInput.tsx`, `pages/Home.tsx` (or `DecisionInput.tsx`, decide at this step per `08_FRONTEND_ARCHITECTURE.md`) — entity/capability/options form, plain layout, no styling polish yet; candidate-options field optional with the inference hint copy from `03_UX_FLOWS.md`
+  Commit: `Update - 9.1 - decision input form`
+- [ ] 9.2 — `components/pipeline-status/PipelineStatusStrip.tsx` — wire form submit to the Phase 8.3 API client; resolve `08_FRONTEND_ARCHITECTURE.md`'s open question (sync response vs. Phase 7.3 polling) before deciding how the six-stage strip reflects real state; render the failed-stage state honestly, not a generic error
+  Commit: `Update - 9.2 - pipeline status strip wired to backend`
+- [ ] 9.3 — `components/verdict-panel/VerdictBanner.tsx` + `PathCard.tsx`, `pages/DecisionResult.tsx` — render the Orchestrator verdict banner and one card per path (outcome/dependency/failure-mode), per `06_COMPONENT_BREAKDOWN.md`'s states for each; plain layout, no design-token styling applied yet
+  Commit: `Update - 9.3 - result view (verdict banner + path cards)`
+- [ ] 9.4 — Apply `05_DESIGN_SYSTEM.md` tokens and the density rule (dense chrome / roomy verdict content) to 9.1–9.3; this is the first real styling pass, deliberately kept separate from building the raw components above
+  Commit: `Update - 9.4 - design system pass on input and result flow`
+
+**Checkpoint:** the full Decision Input → Pipeline Status → Result View flow works end-to-end against the real backend before Phase 9.5 begins. Do not start the Dashboard or dependency graph before this checkpoint holds.
+
+- [ ] 9.5 — `components/dependency-graph/DependencyGraph.tsx` — react-flow visualisation of dependency relationships, built against the now-proven `PathCard` data shape
+  Commit: `Update - 9.5 - dependency graph visualisation`
+- [ ] 9.6 — `components/dashboard/DashboardShell.tsx` — assemble multi-pane layout (verdict pane + dependency-graph pane), `/dashboard` route added per `04_SCREEN_INVENTORY.md`
+  Commit: `Update - 9.6 - multi-pane dashboard layout`
+- [ ] 9.7 — `components/command-bar/CommandBar.tsx` — nav-only command bar (`verdict`, `graph`, `new` per `03_UX_FLOWS.md` Flow B); explicitly not a query/submission interface
+  Commit: `Update - 9.7 - command bar (navigation only)`
+
+## Phase 10 — Integration & Polish
+
+- [ ] 10.1 — End-to-end manual test: real decision brief through frontend → backend → verdict rendered, including a deliberate verification-failure case to confirm the failed-stage UI in 9.2 works; commit any fixes found, described individually
+  Commit: `Update - 10.1 - end-to-end manual verification pass`
+- [ ] 10.2 — Motion/accessibility pass per `05_DESIGN_SYSTEM.md`: keyboard focus states, `prefers-reduced-motion`, risk-severity color-plus-label check
+  Commit: `Update - 10.2 - accessibility and motion pass`
+- [ ] 10.3 — Final Hybrid Terminal aesthetic review: confirm density rule was applied consistently (dense chrome, roomy verdict/dependency content) and the Dependency Thread signature element reads clearly, not decoratively
+  Commit: `Update - 10.3 - terminal aesthetic review pass`
+
+## Phase 11 — Deployment (last, not in parallel with feature work)
+
+- [ ] 11.1 — `infra/docker/backend.Dockerfile`
+  Commit: `Update - 11.1 - backend Dockerfile`
+- [ ] 11.2 — `infra/docker/frontend.Dockerfile`
+  Commit: `Update - 11.2 - frontend Dockerfile`
+- [ ] 11.3 — `infra/docker-compose.yml` for local full-stack run
+  Commit: `Update - 11.3 - docker-compose for local dev`
+- [ ] 11.4 — Deploy backend to Render (or chosen VM)
+  Commit: `Update - 11.4 - backend deploy config`
+- [ ] 11.5 — Deploy frontend to Vercel
+  Commit: `Update - 11.5 - frontend deploy config`
+
+---
+
+## Notes on Pace
+
+- Given the target of 50+ commits, most tasks above should map to **one commit each**, not be batched further — the list is already sized for that.
+- If a task still feels too large when you get to it, split it further in this file (e.g. `5.1a`, `5.1b`) before starting, rather than writing a large commit and describing it as several things at once.
+- Backend (Phases 1–7) is a hard gate before Phase 8 begins.
