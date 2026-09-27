@@ -1,14 +1,11 @@
 """
-Unit tests for CooldownTracker and call_llm_with_fallback in app.llm.client.
+Unit tests for multi-provider fallback chain and cooldown management.
 
-Covers:
-  - CooldownTracker operations (set, check, get remaining, reset)
-  - LLM_PROVIDER_MODE=manual directly invokes complete() with no fallback
-  - LLM_PROVIDER_MODE=auto iterates provider chain on failure
-  - Failing provider receives cooldown and next provider is called for SAME prompt
-  - Cooled-down provider is skipped on subsequent calls
-  - All providers failing raises AllProvidersExhaustedError
-  - Last serving provider tracking
+Specifically verifies Task 10.3.7 requirements:
+  (a) Forced RateLimitError on provider 1 falls through to provider 2
+  (b) All providers exhausted raises AllProvidersExhaustedError
+  (c) A provider within cooldown is skipped without being called again
+  (d) LLM_PROVIDER_MODE=manual never invokes chain/cooldown logic
 """
 
 from unittest.mock import MagicMock, patch
@@ -42,90 +39,41 @@ def reset_cooldown():
 # CooldownTracker Unit Tests
 # ---------------------------------------------------------------------------
 
-def test_cooldown_tracker_basic():
+def test_cooldown_tracker_set_and_check():
+    """CooldownTracker accurately tracks expiration and remaining time."""
     tracker = CooldownTracker()
-    assert not tracker.is_cooling_down("gemini")
-    assert tracker.get_remaining_cooldown("gemini") == 0.0
+    assert not tracker.is_cooling_down("nvidia_nim")
+    assert tracker.get_remaining_cooldown("nvidia_nim") == 0.0
 
-    # Set cooldown for 60 seconds
-    tracker.set_cooldown("gemini", duration_sec=60.0, now=100.0)
-    assert tracker.is_cooling_down("gemini", now=120.0)
-    assert tracker.get_remaining_cooldown("gemini", now=120.0) == 40.0
+    tracker.set_cooldown("nvidia_nim", duration_sec=60.0, now=100.0)
+    assert tracker.is_cooling_down("nvidia_nim", now=120.0)
+    assert tracker.get_remaining_cooldown("nvidia_nim", now=120.0) == 40.0
 
-    # Past cooldown expiration
-    assert not tracker.is_cooling_down("gemini", now=165.0)
-    assert tracker.get_remaining_cooldown("gemini", now=165.0) == 0.0
+    # Cooldown expires after 60s
+    assert not tracker.is_cooling_down("nvidia_nim", now=161.0)
+    assert tracker.get_remaining_cooldown("nvidia_nim", now=161.0) == 0.0
 
 
-def test_cooldown_tracker_reset():
+def test_cooldown_tracker_reset_individual_and_all():
+    """CooldownTracker resets individual providers or all providers."""
     tracker = CooldownTracker()
-    tracker.set_cooldown("gemini", 60.0, now=100.0)
     tracker.set_cooldown("nvidia_nim", 60.0, now=100.0)
+    tracker.set_cooldown("gemini", 60.0, now=100.0)
 
-    tracker.reset("gemini")
-    assert not tracker.is_cooling_down("gemini", now=110.0)
-    assert tracker.is_cooling_down("nvidia_nim", now=110.0)
+    tracker.reset("nvidia_nim")
+    assert not tracker.is_cooling_down("nvidia_nim", now=110.0)
+    assert tracker.is_cooling_down("gemini", now=110.0)
 
     tracker.reset()
-    assert not tracker.is_cooling_down("nvidia_nim", now=110.0)
+    assert not tracker.is_cooling_down("gemini", now=110.0)
 
 
 # ---------------------------------------------------------------------------
-# call_llm_with_fallback: Manual Mode Tests
+# Requirement (a): Forced RateLimitError on provider 1 falls through to provider 2
 # ---------------------------------------------------------------------------
 
-def test_fallback_manual_mode_calls_complete_directly():
-    """In manual mode, calls complete() with zero fallback or chain logic."""
-    with patch("app.llm.client.settings") as mock_settings:
-        mock_settings.llm_provider_mode = "manual"
-        mock_settings.llm_provider = "deepseek"
-        mock_settings.provider_chain = ["nvidia_nim", "gemini"]
-
-        with patch("app.llm.client.complete", return_value="Manual result") as mock_complete:
-            with patch("app.llm.client.get_adapter") as mock_get_adapter:
-                res = call_llm_with_fallback("Test prompt")
-                assert res == "Manual result"
-                mock_complete.assert_called_once_with("Test prompt", provider="default")
-                # Fallback chain adapter should NOT be called at all
-                mock_get_adapter.assert_not_called()
-                assert get_last_serving_provider() == "deepseek"
-
-
-def test_fallback_specific_provider_calls_complete_directly():
-    """When a specific provider (e.g. anthropic) is specified, complete() is called directly."""
-    with patch("app.llm.client.settings") as mock_settings:
-        mock_settings.llm_provider_mode = "auto"
-        with patch("app.llm.client.complete", return_value="Claude reply") as mock_complete:
-            res = call_llm_with_fallback("Prompt", provider="anthropic")
-            assert res == "Claude reply"
-            mock_complete.assert_called_once_with("Prompt", provider="anthropic")
-
-
-# ---------------------------------------------------------------------------
-# call_llm_with_fallback: Auto Mode Success & Failover Tests
-# ---------------------------------------------------------------------------
-
-def test_fallback_auto_mode_first_provider_succeeds():
-    """In auto mode, first provider in chain succeeds and returns result."""
-    with patch("app.llm.client.settings") as mock_settings:
-        mock_settings.llm_provider_mode = "auto"
-        mock_settings.provider_chain = ["nvidia_nim", "openrouter"]
-        mock_settings.llm_provider_cooldown_sec = 60
-        mock_settings.llm_provider_max_retries_per_call = 4
-
-        mock_config = ProviderConfig(name="nvidia_nim", api_key="k", model="m")
-        mock_settings.get_provider_config.return_value = mock_config
-
-        mock_adapter = MagicMock(return_value="NIM success output")
-        with patch("app.llm.client.get_adapter", return_value=mock_adapter):
-            res = call_llm_with_fallback("Analyze")
-            assert res == "NIM success output"
-            assert get_last_serving_provider() == "nvidia_nim"
-            assert not cooldown_tracker.is_cooling_down("nvidia_nim")
-
-
-def test_fallback_auto_mode_rate_limit_fails_over_to_next_provider():
-    """When provider 1 hits RateLimitError, it cools down and provider 2 answers."""
+def test_forced_rate_limit_error_on_provider_1_falls_through_to_provider_2():
+    """(a) Forced RateLimitError on provider 1 falls through to provider 2 for the same prompt."""
     with patch("app.llm.client.settings") as mock_settings:
         mock_settings.llm_provider_mode = "auto"
         mock_settings.provider_chain = ["nvidia_nim", "openrouter"]
@@ -133,29 +81,88 @@ def test_fallback_auto_mode_rate_limit_fails_over_to_next_provider():
         mock_settings.llm_provider_max_retries_per_call = 4
         mock_settings.get_provider_config.side_effect = lambda p: ProviderConfig(name=p, api_key="k", model="m")
 
+        call_log = []
+
         def adapter_dispatch(provider_name):
             if provider_name == "nvidia_nim":
                 def failing_adapter(prompt, cfg):
-                    raise RateLimitError("429 Too Many Requests", provider="nvidia_nim", retry_after=30.0)
+                    call_log.append(("nvidia_nim", prompt))
+                    raise RateLimitError("429 rate limit exceeded", provider="nvidia_nim", retry_after=30.0)
                 return failing_adapter
-            else:
+            elif provider_name == "openrouter":
                 def succeeding_adapter(prompt, cfg):
-                    return "OpenRouter failover success"
+                    call_log.append(("openrouter", prompt))
+                    return "OpenRouter successfully synthesized verdict."
                 return succeeding_adapter
+            raise ValueError(f"Unexpected provider: {provider_name}")
 
         with patch("app.llm.client.get_adapter", side_effect=adapter_dispatch):
-            res = call_llm_with_fallback("Run assessment")
-            assert res == "OpenRouter failover success"
+            result = call_llm_with_fallback("Analyze tactical SLM sovereignty")
+
+            # Verify both providers were called for the EXACT same prompt
+            assert call_log == [
+                ("nvidia_nim", "Analyze tactical SLM sovereignty"),
+                ("openrouter", "Analyze tactical SLM sovereignty"),
+            ]
+            assert result == "OpenRouter successfully synthesized verdict."
             assert get_last_serving_provider() == "openrouter"
 
-            # Check that provider 1 was marked cooling down
+            # Verify provider 1 was placed into cooldown with custom retry_after duration
             assert cooldown_tracker.is_cooling_down("nvidia_nim")
+            # Verify provider 2 is healthy (not cooling down)
             assert not cooldown_tracker.is_cooling_down("openrouter")
 
 
-def test_fallback_skips_provider_in_cooldown():
-    """A provider currently in cooldown is skipped without attempting adapter execution."""
+# ---------------------------------------------------------------------------
+# Requirement (b): All providers exhausted raises AllProvidersExhaustedError
+# ---------------------------------------------------------------------------
+
+def test_all_providers_exhausted_raises_all_providers_exhausted_error():
+    """(b) When every provider in the chain fails, AllProvidersExhaustedError is raised."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.llm_provider_mode = "auto"
+        mock_settings.provider_chain = ["nvidia_nim", "openrouter", "gemini"]
+        mock_settings.llm_provider_cooldown_sec = 30
+        mock_settings.llm_provider_max_retries_per_call = 4
+        mock_settings.get_provider_config.side_effect = lambda p: ProviderConfig(name=p, api_key="k", model="m")
+
+        attempted_calls = []
+
+        def failing_adapter(provider_name):
+            def _fn(prompt, cfg):
+                attempted_calls.append(provider_name)
+                if provider_name == "nvidia_nim":
+                    raise RateLimitError("429 Too Many Requests", provider=provider_name)
+                elif provider_name == "openrouter":
+                    raise AuthError("401 Unauthorized API key", provider=provider_name)
+                else:
+                    raise ServerError("503 UNAVAILABLE: Model overloaded", provider=provider_name)
+            return _fn
+
+        with patch("app.llm.client.get_adapter", side_effect=failing_adapter):
+            with pytest.raises(AllProvidersExhaustedError) as exc_info:
+                call_llm_with_fallback("Run critical brief")
+
+            assert "All LLM providers in fallback chain exhausted" in str(exc_info.value)
+            # All three providers were attempted in order
+            assert attempted_calls == ["nvidia_nim", "openrouter", "gemini"]
+            # All three providers were placed into cooldown
+            assert cooldown_tracker.is_cooling_down("nvidia_nim")
+            assert cooldown_tracker.is_cooling_down("openrouter")
+            assert cooldown_tracker.is_cooling_down("gemini")
+            # Error carries records of all attempted errors
+            assert len(exc_info.value.attempts) == 3
+
+
+# ---------------------------------------------------------------------------
+# Requirement (c): A provider within cooldown is skipped without being called again
+# ---------------------------------------------------------------------------
+
+def test_provider_within_cooldown_skipped_without_being_called_again():
+    """(c) A provider within cooldown is skipped without its adapter being executed."""
+    # Place provider 1 into active cooldown
     cooldown_tracker.set_cooldown("nvidia_nim", duration_sec=60.0)
+    assert cooldown_tracker.is_cooling_down("nvidia_nim")
 
     with patch("app.llm.client.settings") as mock_settings:
         mock_settings.llm_provider_mode = "auto"
@@ -164,38 +171,104 @@ def test_fallback_skips_provider_in_cooldown():
         mock_settings.llm_provider_max_retries_per_call = 4
         mock_settings.get_provider_config.side_effect = lambda p: ProviderConfig(name=p, api_key="k", model="m")
 
-        called_providers = []
+        mock_adapters_called = []
 
         def adapter_dispatch(provider_name):
-            called_providers.append(provider_name)
-            return lambda prompt, cfg: f"{provider_name} response"
+            mock_adapters_called.append(provider_name)
+            return lambda prompt, cfg: f"Response from {provider_name}"
 
         with patch("app.llm.client.get_adapter", side_effect=adapter_dispatch):
-            res = call_llm_with_fallback("Prompt")
-            assert res == "gemini response"
-            # nvidia_nim was skipped, only gemini was called
-            assert called_providers == ["gemini"]
+            result = call_llm_with_fallback("Next sequential prompt")
+
+            # nvidia_nim was in cooldown and skipped; only gemini was called
+            assert mock_adapters_called == ["gemini"]
+            assert result == "Response from gemini"
             assert get_last_serving_provider() == "gemini"
 
 
-def test_fallback_all_providers_exhausted_raises_error():
-    """When all providers in chain fail, AllProvidersExhaustedError is raised."""
+def test_subsequent_calls_respect_cooldown_state():
+    """Call 1 fails provider 1 -> Call 2 immediately skips provider 1 and routes to provider 2."""
     with patch("app.llm.client.settings") as mock_settings:
         mock_settings.llm_provider_mode = "auto"
         mock_settings.provider_chain = ["nvidia_nim", "openrouter"]
-        mock_settings.llm_provider_cooldown_sec = 30
+        mock_settings.llm_provider_cooldown_sec = 120
         mock_settings.llm_provider_max_retries_per_call = 4
         mock_settings.get_provider_config.side_effect = lambda p: ProviderConfig(name=p, api_key="k", model="m")
 
-        def failing_adapter(name):
+        call_counts = {"nvidia_nim": 0, "openrouter": 0}
+
+        def adapter_dispatch(provider_name):
             def _fn(prompt, cfg):
-                raise ServerError(f"500 from {name}", provider=name)
+                call_counts[provider_name] += 1
+                if provider_name == "nvidia_nim":
+                    raise RateLimitError("429 rate limit", provider=provider_name)
+                return f"Success from {provider_name}"
             return _fn
 
-        with patch("app.llm.client.get_adapter", side_effect=failing_adapter):
-            with pytest.raises(AllProvidersExhaustedError) as exc_info:
-                call_llm_with_fallback("Prompt")
+        with patch("app.llm.client.get_adapter", side_effect=adapter_dispatch):
+            # First call: nvidia_nim fails, openrouter succeeds
+            res1 = call_llm_with_fallback("Prompt 1")
+            assert res1 == "Success from openrouter"
+            assert call_counts == {"nvidia_nim": 1, "openrouter": 1}
 
-            assert "All LLM providers in fallback chain exhausted" in str(exc_info.value)
-            assert cooldown_tracker.is_cooling_down("nvidia_nim")
-            assert cooldown_tracker.is_cooling_down("openrouter")
+            # Second call: nvidia_nim is cooling down and MUST NOT be called again
+            res2 = call_llm_with_fallback("Prompt 2")
+            assert res2 == "Success from openrouter"
+            assert call_counts == {"nvidia_nim": 1, "openrouter": 2}
+
+
+# ---------------------------------------------------------------------------
+# Requirement (d): LLM_PROVIDER_MODE=manual never invokes chain/cooldown logic
+# ---------------------------------------------------------------------------
+
+def test_manual_mode_never_invokes_chain_or_cooldown_logic():
+    """(d) When LLM_PROVIDER_MODE=manual, complete() is called directly; no chain or cooldown logic."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.llm_provider_mode = "manual"
+        mock_settings.llm_provider = "deepseek"
+        mock_settings.provider_chain = ["nvidia_nim", "openrouter", "gemini"]
+
+        # Even if a provider is marked cooling down, manual mode ignores it
+        cooldown_tracker.set_cooldown("deepseek", duration_sec=60.0)
+
+        with patch("app.llm.client.complete", return_value="Unmodified single-provider response") as mock_complete:
+            with patch("app.llm.client.get_adapter") as mock_get_adapter:
+                res = call_llm_with_fallback("Evaluate prompt")
+
+                assert res == "Unmodified single-provider response"
+                mock_complete.assert_called_once_with("Evaluate prompt", provider="default")
+                # Fallback chain adapter lookup must NEVER be touched
+                mock_get_adapter.assert_not_called()
+                assert get_last_serving_provider() == "deepseek"
+
+
+def test_manual_mode_exception_propagates_directly_without_failover():
+    """In manual mode, if complete() raises an exception, it propagates without attempting failover."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.llm_provider_mode = "manual"
+        mock_settings.llm_provider = "deepseek"
+        mock_settings.provider_chain = ["nvidia_nim", "openrouter"]
+
+        with patch("app.llm.client.complete", side_effect=RuntimeError("Direct single-provider error")):
+            with patch("app.llm.client.get_adapter") as mock_get_adapter:
+                with pytest.raises(RuntimeError, match="Direct single-provider error"):
+                    call_llm_with_fallback("Evaluate prompt")
+
+                # No fallback was attempted
+                mock_get_adapter.assert_not_called()
+                # Provider was not placed into cooldown because manual mode doesn't invoke cooldown logic
+                assert not cooldown_tracker.is_cooling_down("openrouter")
+
+
+def test_manual_mode_explicit_provider_override():
+    """Manual mode with an explicit provider override (e.g. anthropic) dispatches directly."""
+    with patch("app.llm.client.settings") as mock_settings:
+        mock_settings.llm_provider_mode = "manual"
+
+        with patch("app.llm.client.complete", return_value="Claude response") as mock_complete:
+            with patch("app.llm.client.get_adapter") as mock_get_adapter:
+                res = call_llm_with_fallback("Prompt", provider="anthropic")
+                assert res == "Claude response"
+                mock_complete.assert_called_once_with("Prompt", provider="anthropic")
+                mock_get_adapter.assert_not_called()
+                assert get_last_serving_provider() == "anthropic"

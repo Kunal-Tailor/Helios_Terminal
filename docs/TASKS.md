@@ -339,7 +339,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 - [x] 10.3.6 — Wire `call_llm_with_fallback()` into the six agents' call sites, replacing direct calls to the old single-provider function. Confirm every existing unit/integration test still passes unmodified; only touch a test file if it called the old function by name and needs an import path update (note explicitly in commit message).
   Commit: `Update - 10.3.6 - wire fallback wrapper into agent call sites`
 
-- [ ] 10.3.7 — Add fallback-specific tests: (a) forced `RateLimitError` on provider 1 falls through to provider 2, (b) all providers exhausted raises `AllProvidersExhaustedError`, (c) a provider within cooldown is skipped without being called again, (d) `LLM_PROVIDER_MODE=manual` never invokes chain/cooldown logic.
+- [x] 10.3.7 — Add fallback-specific tests: (a) forced `RateLimitError` on provider 1 falls through to provider 2, (b) all providers exhausted raises `AllProvidersExhaustedError`, (c) a provider within cooldown is skipped without being called again, (d) `LLM_PROVIDER_MODE=manual` never invokes chain/cooldown logic.
   Commit: `Update - 10.3.7 - fallback and cooldown test coverage`
 
 - [ ] 10.3.8 — Record which provider served each call into the structure backing `recalibration_trail`/verification metadata (Phase 7.5.11), so the API response shows which provider answered each pipeline stage. Update response schema and its test if the shape changes.
