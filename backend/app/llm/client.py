@@ -13,14 +13,172 @@ No retry logic, streaming, or token management here — those belong in the agen
 
 import logging
 import re
+import threading
 import time
+from typing import Any, Dict, List, Optional, Tuple
 
 import anthropic
 import openai
 
 from app.core.config import settings
+from app.llm.adapters import get_adapter
+from app.llm.errors import (
+    AllProvidersExhaustedError,
+    AuthError,
+    RateLimitError,
+    ServerError,
+    map_provider_error,
+)
 
 logger = logging.getLogger(__name__)
+
+
+class CooldownTracker:
+    """In-memory thread-safe tracker for LLM provider cooldown timestamps."""
+
+    def __init__(self):
+        self._cooldowns: Dict[str, float] = {}
+        self._lock = threading.Lock()
+
+    def is_cooling_down(self, provider: str, now: Optional[float] = None) -> bool:
+        """Check if provider is currently cooling down."""
+        curr = time.time() if now is None else now
+        with self._lock:
+            until = self._cooldowns.get(provider.strip().lower(), 0.0)
+            return curr < until
+
+    def set_cooldown(self, provider: str, duration_sec: float, now: Optional[float] = None) -> None:
+        """Place provider into cooldown for duration_sec seconds."""
+        curr = time.time() if now is None else now
+        with self._lock:
+            self._cooldowns[provider.strip().lower()] = curr + max(0.0, float(duration_sec))
+
+    def get_remaining_cooldown(self, provider: str, now: Optional[float] = None) -> float:
+        """Return remaining cooldown seconds for provider (0.0 if not cooling down)."""
+        curr = time.time() if now is None else now
+        with self._lock:
+            until = self._cooldowns.get(provider.strip().lower(), 0.0)
+            return max(0.0, until - curr)
+
+    def reset(self, provider: Optional[str] = None) -> None:
+        """Clear cooldown for a single provider or all providers."""
+        with self._lock:
+            if provider is not None:
+                self._cooldowns.pop(provider.strip().lower(), None)
+            else:
+                self._cooldowns.clear()
+
+
+# Shared in-memory cooldown tracker instance
+cooldown_tracker = CooldownTracker()
+
+_last_serving_provider: Optional[str] = None
+
+
+def get_last_serving_provider() -> Optional[str]:
+    """Return the name of the provider that answered the most recent LLM call."""
+    return _last_serving_provider
+
+
+def call_llm_with_fallback(prompt: str, provider: str = "default") -> str:
+    """Execute LLM call with multi-provider fallback and cooldown management.
+
+    Behavior
+    --------
+    - If LLM_PROVIDER_MODE is 'manual' (or a specific provider like 'anthropic' or
+      'openai' is requested), delegates directly to the single-provider complete()
+      function with zero fallback logic invoked.
+    - If LLM_PROVIDER_MODE is 'auto', iterates LLM_PROVIDER_CHAIN in priority order.
+      Providers currently cooling down are skipped. On RateLimitError, AuthError,
+      or ServerError, the failing provider is placed into cooldown and the NEXT
+      provider in the chain is attempted for the SAME call.
+    - Returns text on the first successful provider reply.
+    - Raises AllProvidersExhaustedError if all candidate providers fail or are
+      in cooldown.
+    """
+    global _last_serving_provider
+    mode = (getattr(settings, "llm_provider_mode", "manual") or "manual").strip().lower()
+
+    # Manual mode or specific provider requested -> call single provider directly
+    if mode == "manual" or provider not in ("default", "auto"):
+        active_provider = settings.llm_provider if provider == "default" else provider
+        result = complete(prompt, provider=provider)
+        _last_serving_provider = active_provider
+        return result
+
+    # Auto mode -> iterate provider chain
+    chain = getattr(settings, "provider_chain", None)
+    if not chain:
+        result = complete(prompt, provider=provider)
+        _last_serving_provider = settings.llm_provider
+        return result
+
+    cooldown_sec = float(getattr(settings, "llm_provider_cooldown_sec", 60))
+    max_retries = int(getattr(settings, "llm_provider_max_retries_per_call", len(chain)))
+    attempts: List[Tuple[str, Any]] = []
+
+    for idx, provider_name in enumerate(chain):
+        if idx >= max_retries:
+            logger.warning(
+                "Reached max provider retries per call (%d). Stopping fallback chain.",
+                max_retries,
+            )
+            break
+
+        if cooldown_tracker.is_cooling_down(provider_name):
+            remaining = cooldown_tracker.get_remaining_cooldown(provider_name)
+            logger.debug(
+                "Provider '%s' is in cooldown (%.1fs remaining), skipping.",
+                provider_name,
+                remaining,
+            )
+            attempts.append((provider_name, f"cooldown_active_{remaining:.1f}s"))
+            continue
+
+        try:
+            adapter = get_adapter(provider_name)
+            config = settings.get_provider_config(provider_name)
+            result = adapter(prompt, config)
+            _last_serving_provider = provider_name
+            logger.info("LLM call succeeded via provider '%s'", provider_name)
+            return result
+        except (RateLimitError, AuthError, ServerError) as exc:
+            duration = (
+                exc.retry_after
+                if (isinstance(exc, RateLimitError) and exc.retry_after and exc.retry_after > 0)
+                else cooldown_sec
+            )
+            cooldown_tracker.set_cooldown(provider_name, duration)
+            logger.warning(
+                "Provider '%s' failed with %s: %s. Cooldown set for %.1fs. Failing over to next provider.",
+                provider_name,
+                type(exc).__name__,
+                exc,
+                duration,
+            )
+            attempts.append((provider_name, exc))
+        except Exception as exc:
+            mapped_exc = map_provider_error(exc, provider=provider_name)
+            duration = (
+                mapped_exc.retry_after
+                if (isinstance(mapped_exc, RateLimitError) and mapped_exc.retry_after and mapped_exc.retry_after > 0)
+                else cooldown_sec
+            )
+            cooldown_tracker.set_cooldown(provider_name, duration)
+            logger.warning(
+                "Provider '%s' failed with unexpected %s: %s. Cooldown set for %.1fs. Failing over.",
+                provider_name,
+                type(exc).__name__,
+                exc,
+                duration,
+            )
+            attempts.append((provider_name, mapped_exc))
+
+    raise AllProvidersExhaustedError(
+        f"All LLM providers in fallback chain exhausted: {attempts}",
+        attempts=attempts,
+    )
+
 
 
 

@@ -73,6 +73,18 @@ class ServerError(LLMProviderError):
         super().__init__(message=message, provider=provider, status_code=status_code)
 
 
+class AllProvidersExhaustedError(LLMProviderError):
+    """Raised when all candidate providers in the fallback chain fail or are cooling down."""
+
+    def __init__(
+        self,
+        message: str = "All LLM providers in fallback chain exhausted.",
+        attempts: Optional[list] = None,
+    ):
+        super().__init__(message=message)
+        self.attempts = attempts or []
+
+
 def extract_retry_after(text: str) -> Optional[float]:
     """Extract retry-after delay in seconds from an error message if present."""
     if not text:
