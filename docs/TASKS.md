@@ -321,7 +321,7 @@ Context: wiring the completed Dashboard (Phase 9) to the live backend, multi-pro
 
 CONSTRAINT for all of 10.3: every existing test currently passing must keep passing, unmodified. The existing call_llm-equivalent function signature in `backend/app/llm/client.py` must not change. `LLM_PROVIDER_MODE=manual` must reproduce the exact current single-provider behavior with zero fallback logic invoked — byte-for-byte the same code path as today.
 
-- [ ] 10.3.1 — Replace `.env.example` (backend) with the 4-provider structure: `LLM_PROVIDER_MODE` (manual|auto), `LLM_PROVIDER_CHAIN` (comma-separated), `LLM_PROVIDER_COOLDOWN_SEC`, `LLM_PROVIDER_MAX_RETRIES_PER_CALL`, and per-provider key/base_url/model triplets for `nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`. Config file only, no code changes.
+- [x] 10.3.1 — Replace `.env.example` (backend) with the 4-provider structure: `LLM_PROVIDER_MODE` (manual|auto), `LLM_PROVIDER_CHAIN` (comma-separated), `LLM_PROVIDER_COOLDOWN_SEC`, `LLM_PROVIDER_MAX_RETRIES_PER_CALL`, and per-provider key/base_url/model triplets for `nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`. Config file only, no code changes.
   Commit: `Update - 10.3.1 - redesign env for multi-provider fallback chain`
 
 - [ ] 10.3.2 — Extend `backend/app/core/config.py` to parse the new env vars and build a per-provider config object (api_key, base_url, model) for each of the four providers. Unit test for valid and malformed `LLM_PROVIDER_CHAIN` values.
