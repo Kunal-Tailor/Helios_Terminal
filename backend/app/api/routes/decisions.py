@@ -50,6 +50,8 @@ def create_decision(brief: DecisionRequest) -> DecisionResponse:
             entity=brief.entity,
             capability=brief.capability,
             options=brief.options,
+            data_sovereignty_weight=brief.data_sovereignty_weight,
+            latency_tolerance=brief.latency_tolerance,
         )
         return DecisionResponse.from_pipeline_result(pipeline_result)
     except RateLimitError as exc:
@@ -120,6 +122,8 @@ def _process_decision_job(job_id: str, brief: DecisionRequest) -> None:
             entity=brief.entity,
             capability=brief.capability,
             options=brief.options,
+            data_sovereignty_weight=brief.data_sovereignty_weight,
+            latency_tolerance=brief.latency_tolerance,
         )
         response_model = DecisionResponse.from_pipeline_result(pipeline_result)
         JOBS[job_id].result = response_model

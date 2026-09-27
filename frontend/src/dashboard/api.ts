@@ -28,6 +28,8 @@ export interface DecisionRequest {
   entity: string;
   capability: string;
   options: string[];
+  data_sovereignty_weight?: 'CRITICAL' | 'STANDARD' | 'LOW' | string;
+  latency_tolerance?: 'SUB_20MS' | 'BALANCED' | 'BATCH' | string;
 }
 
 export interface AuditStep {
@@ -92,6 +94,9 @@ export interface DecisionResponse {
   verification_results: VerificationResult[];
   recalibration_trail: RecalibrationTrailItem[];
   partial_verdict_caveats: string[];
+  stage_providers?: Record<string, string>;
+  data_sovereignty_weight?: string | null;
+  latency_tolerance?: string | null;
 }
 
 export interface JobStatusResponse {

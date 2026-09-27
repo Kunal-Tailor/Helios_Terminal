@@ -89,6 +89,8 @@ def test_post_decisions_endpoint_success():
             entity="Indian Army signals division",
             capability="small language model for edge inference",
             options=["build in-house", "license open-weight"],
+            data_sovereignty_weight=None,
+            latency_tolerance=None,
         )
 
 
@@ -309,3 +311,84 @@ def test_get_decision_job_not_found():
     res = client.get("/decisions/jobs/invalid-job-id-12345")
     assert res.status_code == 404
     assert "detail" in res.json()
+
+
+def test_post_decisions_with_strategic_constraints():
+    """Test POST /decisions propagates strategic constraints (data_sovereignty_weight, latency_tolerance)."""
+    mock_verdict = OrchestratorVerdict(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        recommended_path="License Open-Weight Model",
+        verdict_summary="Summary",
+    )
+    mock_result = PipelineResult(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house", "license open-weight"],
+        data_sovereignty_weight="CRITICAL",
+        latency_tolerance="SUB_20MS",
+        verdict=mock_verdict,
+        verification_passed=True,
+    )
+    payload = {
+        "entity": "Indian Army signals division",
+        "capability": "small language model for edge inference",
+        "options": ["build in-house", "license open-weight"],
+        "data_sovereignty_weight": "CRITICAL",
+        "latency_tolerance": "SUB_20MS",
+    }
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result) as mock_run:
+        response = client.post("/decisions", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["data_sovereignty_weight"] == "CRITICAL"
+        assert data["latency_tolerance"] == "SUB_20MS"
+        mock_run.assert_called_once_with(
+            entity="Indian Army signals division",
+            capability="small language model for edge inference",
+            options=["build in-house", "license open-weight"],
+            data_sovereignty_weight="CRITICAL",
+            latency_tolerance="SUB_20MS",
+        )
+
+
+def test_post_decisions_async_with_strategic_constraints():
+    """Test POST /decisions/async passes strategic constraints to background worker."""
+    payload = {
+        "entity": "Indian Army signals division",
+        "capability": "small language model for edge inference",
+        "options": ["build in-house"],
+        "data_sovereignty_weight": "CRITICAL",
+        "latency_tolerance": "SUB_20MS",
+    }
+    mock_verdict = OrchestratorVerdict(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        recommended_path="Build",
+        verdict_summary="Summary",
+    )
+    mock_result = PipelineResult(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house"],
+        data_sovereignty_weight="CRITICAL",
+        latency_tolerance="SUB_20MS",
+        verdict=mock_verdict,
+    )
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result) as mock_run:
+        res_post = client.post("/decisions/async", json=payload)
+        assert res_post.status_code == 202
+        job_id = res_post.json()["job_id"]
+        mock_run.assert_called_once_with(
+            entity="Indian Army signals division",
+            capability="small language model for edge inference",
+            options=["build in-house"],
+            data_sovereignty_weight="CRITICAL",
+            latency_tolerance="SUB_20MS",
+        )
+        res_get = client.get(f"/decisions/jobs/{job_id}")
+        assert res_get.status_code == 200
+        result_data = res_get.json().get("result")
+        if result_data:
+            assert result_data["data_sovereignty_weight"] == "CRITICAL"
+            assert result_data["latency_tolerance"] == "SUB_20MS"

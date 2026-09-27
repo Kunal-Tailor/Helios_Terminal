@@ -139,6 +139,8 @@ class PipelineResult:
     recalibration_trail: list[RecalibrationRequest] = field(default_factory=list)
     partial_verdict_caveats: list[str] = field(default_factory=list)
     stage_providers: dict[str, str] = field(default_factory=dict)
+    data_sovereignty_weight: str | None = None
+    latency_tolerance: str | None = None
 
 
 def run_pipeline(
@@ -148,6 +150,8 @@ def run_pipeline(
     store: SourceStore | None = None,
     halt_on_verification_failure: bool = True,
     loop_guard: LoopGuard | None = None,
+    data_sovereignty_weight: str | None = None,
+    latency_tolerance: str | None = None,
 ) -> PipelineResult:
     """Execute the 6-stage AI sourcing decision pipeline with stage verification and recalibration.
 
@@ -163,6 +167,12 @@ def run_pipeline(
         Optional pre-populated :class:`~app.verification.source_store.SourceStore`.
     halt_on_verification_failure:
         If True (default), pipeline halts downstream execution if any claim in a stage fails verification.
+    loop_guard:
+        Optional custom loop guard for controlling recalibration limits.
+    data_sovereignty_weight:
+        Optional data sovereignty priority constraint ('CRITICAL', 'STANDARD', 'LOW').
+    latency_tolerance:
+        Optional latency/SLA tolerance constraint ('SUB_20MS', 'BALANCED', 'BATCH').
 
     Returns
     -------
@@ -177,6 +187,8 @@ def run_pipeline(
         capability=capability,
         options=options_list,
         source_store=source_store,
+        data_sovereignty_weight=data_sovereignty_weight,
+        latency_tolerance=latency_tolerance,
     )
 
     context_summary = ""

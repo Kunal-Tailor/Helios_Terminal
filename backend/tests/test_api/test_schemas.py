@@ -45,6 +45,23 @@ def test_decision_request_validation_error():
         DecisionRequest(entity="Army", capability="")
 
 
+def test_decision_request_strategic_constraints():
+    """Verify strategic constraints fields in DecisionRequest."""
+    req = DecisionRequest(
+        entity="Indian Army signals division",
+        capability="small language model for edge inference",
+        options=["build in-house", "license open-weight"],
+        data_sovereignty_weight="CRITICAL",
+        latency_tolerance="SUB_20MS",
+    )
+    assert req.data_sovereignty_weight == "CRITICAL"
+    assert req.latency_tolerance == "SUB_20MS"
+
+    dump = req.model_dump()
+    assert dump["data_sovereignty_weight"] == "CRITICAL"
+    assert dump["latency_tolerance"] == "SUB_20MS"
+
+
 def test_orchestrator_verdict_schema_from_dataclass():
     """Verify conversion from OrchestratorVerdict dataclass to OrchestratorVerdictSchema."""
     verdict = OrchestratorVerdict(
@@ -104,6 +121,8 @@ def test_decision_response_from_pipeline_result():
         entity="ACME Corp",
         capability="Speech Recognition",
         options=["build", "buy"],
+        data_sovereignty_weight="CRITICAL",
+        latency_tolerance="SUB_20MS",
         verdict=verdict,
         verification_passed=True,
         verification_failed_stage=None,
@@ -114,6 +133,8 @@ def test_decision_response_from_pipeline_result():
     assert resp.entity == "ACME Corp"
     assert resp.capability == "Speech Recognition"
     assert resp.options == ["build", "buy"]
+    assert resp.data_sovereignty_weight == "CRITICAL"
+    assert resp.latency_tolerance == "SUB_20MS"
     assert resp.verdict is not None
     assert resp.verdict.recommended_path == "License Open-Weight Model"
     assert resp.verification_passed is True

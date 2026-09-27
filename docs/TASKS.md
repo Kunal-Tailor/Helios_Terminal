@@ -352,7 +352,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 
 ---
 
-- [ ] 10.4 — Serialize strategic constraints (Data Sovereignty weight, Latency/SLA tolerance) from `BloombergDecisionConsole` into the `DecisionRequest` body sent to `POST /decisions/async` — requires backend schema update if fields are not yet accepted
+- [x] 10.4 — Serialize strategic constraints (Data Sovereignty weight, Latency/SLA tolerance) from `BloombergDecisionConsole` into the `DecisionRequest` body sent to `POST /decisions/async` — requires backend schema update if fields are not yet accepted
   Commit: `Update - 10.4 - serialize strategic constraints into API request`
 
 - [ ] 10.5 — End-to-end integration test: submit a live brief from the Decision Console (F2) with the real backend running (multi-provider fallback active), verify the polling loop completes, the verdict populates all four quadrants, the audit trail shows real grounded verification results, and the response includes which provider served each stage (from 10.3.8)

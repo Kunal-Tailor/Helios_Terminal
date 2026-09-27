@@ -45,6 +45,16 @@ class DecisionRequest(BaseModel):
         description="Optional list of candidate sourcing options.",
         json_schema_extra={"example": ["build in-house", "license open-weight"]},
     )
+    data_sovereignty_weight: Optional[str] = Field(
+        None,
+        description="Data sovereignty priority constraint ('CRITICAL', 'STANDARD', 'LOW').",
+        json_schema_extra={"example": "CRITICAL"},
+    )
+    latency_tolerance: Optional[str] = Field(
+        None,
+        description="Latency / SLA tolerance constraint ('SUB_20MS', 'BALANCED', 'BATCH').",
+        json_schema_extra={"example": "SUB_20MS"},
+    )
 
 
 class AuditStepSchema(BaseModel):
@@ -204,6 +214,14 @@ class DecisionResponse(BaseModel):
         default_factory=dict,
         description="Map of pipeline stage names to the LLM provider that answered each stage.",
     )
+    data_sovereignty_weight: Optional[str] = Field(
+        None,
+        description="Data sovereignty priority constraint.",
+    )
+    latency_tolerance: Optional[str] = Field(
+        None,
+        description="Latency / SLA tolerance constraint.",
+    )
 
     @classmethod
     def from_pipeline_result(cls, res: PipelineResult) -> DecisionResponse:
@@ -242,6 +260,8 @@ class DecisionResponse(BaseModel):
             recalibration_trail=recal_trail,
             partial_verdict_caveats=caveats,
             stage_providers=stage_provs,
+            data_sovereignty_weight=getattr(res, "data_sovereignty_weight", None),
+            latency_tolerance=getattr(res, "latency_tolerance", None),
         )
 
 

@@ -37,6 +37,8 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       entity: 'Indian Army Signals Directorate',
       capability: 'Tactical Small Language Model for Edge Comms & SIGINT',
       options: ['Self-hosted Fine-tuned Open Weights (Llama 3.3 / Sarvam)', 'Licensed Closed-Weights via Sovereign Cloud', 'Outsourced Defense System Integrator Turnkey SLM'],
+      data_sovereignty_weight: 'CRITICAL',
+      latency_tolerance: 'SUB_20MS',
     },
     trajectoryData: [
       { year: 'Y0 (Deploy)', buildTco: 420, buyTco: 180, outsourceTco: 250, buildLockIn: 1.5, buyLockIn: 4.8, outsourceLockIn: 6.2 },
@@ -142,6 +144,8 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       entity: 'Global Tier-1 Investment Bank (AMR Capital)',
       capability: 'Regulatory-Compliant Financial Intelligence & Synthesis RAG',
       options: ['In-House Open-Source Vector Stack (Qdrant + Qwen-2.5-Coder)', 'Azure AI Foundry Private VNet Managed Service', 'Third-Party Financial AI SaaS (Bloomberg/FactSet Copilot)'],
+      data_sovereignty_weight: 'STANDARD',
+      latency_tolerance: 'BALANCED',
     },
     trajectoryData: [
       { year: 'Y0 (Deploy)', buildTco: 680, buyTco: 340, outsourceTco: 290, buildLockIn: 1.8, buyLockIn: 5.2, outsourceLockIn: 6.8 },
@@ -239,6 +243,8 @@ export const PRESET_SCENARIOS: PresetScenario[] = [
       entity: 'MetroHealth Regional Hospital System',
       capability: 'HIPAA-Compliant Real-Time Clinical Decision Support Copilot',
       options: ['Self-Hosted Med-PaLM / BioMistral on Dedicated GPU Clusters', 'HIPAA BAA Managed Cloud (AWS HealthLake + Claude)', 'Epic / Cerner Native Embedded AI Add-On Module'],
+      data_sovereignty_weight: 'CRITICAL',
+      latency_tolerance: 'SUB_20MS',
     },
     trajectoryData: [
       { year: 'Y0 (Deploy)', buildTco: 590, buyTco: 280, outsourceTco: 380, buildLockIn: 1.6, buyLockIn: 5.8, outsourceLockIn: 8.5 },

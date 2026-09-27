@@ -57,6 +57,12 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
     setEntity(preset.brief.entity);
     setCapability(preset.brief.capability);
     setOptions(preset.brief.options);
+    if (preset.brief.data_sovereignty_weight) {
+      setSovereigntyWeight(preset.brief.data_sovereignty_weight as 'CRITICAL' | 'STANDARD' | 'LOW');
+    }
+    if (preset.brief.latency_tolerance) {
+      setLatencyTolerance(preset.brief.latency_tolerance as 'SUB_20MS' | 'BALANCED' | 'BATCH');
+    }
     onSelectPreset(preset);
   };
 
@@ -68,6 +74,8 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
       entity: entity.trim(),
       capability: capability.trim(),
       options: options.length > 0 ? options : [],
+      data_sovereignty_weight: sovereigntyWeight,
+      latency_tolerance: latencyTolerance,
     });
   };
 
