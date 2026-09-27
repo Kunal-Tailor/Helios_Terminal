@@ -272,3 +272,99 @@ def test_manual_mode_explicit_provider_override():
                 mock_complete.assert_called_once_with("Prompt", provider="anthropic")
                 mock_get_adapter.assert_not_called()
                 assert get_last_serving_provider() == "anthropic"
+
+
+# ---------------------------------------------------------------------------
+# Task 10.3.9: End-to-end fallback verification pass (nvidia_nim exhaustion -> gemini)
+# ---------------------------------------------------------------------------
+
+def test_end_to_end_fallback_nvidia_nim_exhaustion_failover_to_gemini():
+    """Verify that exhausting nvidia_nim automatically fails over to gemini mid-run without breaking endpoint."""
+    from fastapi.testclient import TestClient
+    from app.main import app
+    from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
+    from app.agents.stack_mapping.stack_mapping_agent import StackScope
+    from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
+    from app.agents.scenario_generation.scenario_generation_agent import ScenarioSet
+    from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
+    from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection, OutcomeSet
+    from app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent import Trajectory
+    from app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent import RiskFactor
+    from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis, DiagnosisSet
+    from app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent import LockInDependency
+    from app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent import FailureMode
+    from app.agents.orchestrator.orchestrator_agent import OrchestratorVerdict
+
+    client = TestClient(app)
+    cooldown_tracker.reset()
+
+    context = IngestionContext(
+        entity="Indian Army", capability="SLM", options=["Build", "License"],
+        context_summary="Tactical edge SLM brief.", key_facts=["Tactical edge."], sources=["https://army.in"]
+    )
+    scope = StackScope(
+        entity="Indian Army", capability="SLM",
+        layers=[
+            StackLayer(name="Weights", rationale="SLM", evidence="Tactical edge."),
+            StackLayer(name="Compute", rationale="SLM", evidence="Tactical edge."),
+        ], links=[]
+    )
+    scenarios = ScenarioSet(
+        entity="Indian Army", capability="SLM",
+        scenarios=[
+            Scenario(name="Build", option_name="Build", description="Tactical edge.", layers_addressed=["Weights"]),
+            Scenario(name="License", option_name="License", description="Tactical edge.", layers_addressed=["Weights"]),
+        ]
+    )
+    outcomes = OutcomeSet(
+        entity="Indian Army", capability="SLM",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Build",
+                trajectory=Trajectory(scenario_name="Build", summary="Tactical edge."),
+                risk_factors=[RiskFactor(scenario_name="Build", factor_name="Risk", description="Desc")]
+            )
+        ]
+    )
+    diagnoses = DiagnosisSet(
+        entity="Indian Army", capability="SLM",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Build",
+                dependencies=[LockInDependency(scenario_name="Build", dependency_name="Compute", lock_in_type="Hardware", description="Tactical edge.")],
+                failure_modes=[FailureMode(scenario_name="Build", dependency_name="Compute", failure_mode_title="Failure", what_breaks="Tactical edge.")]
+            )
+        ]
+    )
+    verdict = OrchestratorVerdict(
+        entity="Indian Army", capability="SLM", recommended_path="Build", verdict_summary="Build sovereign."
+    )
+
+    call_idx = {"count": 0}
+    def mock_get_provider():
+        call_idx["count"] += 1
+        if call_idx["count"] == 1:
+            return "nvidia_nim"
+        return "gemini"
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=verdict), \
+         patch("app.pipeline.graph.get_last_serving_provider", side_effect=mock_get_provider):
+
+        payload = {
+            "entity": "Indian Army signals division",
+            "capability": "tactical edge speech recognition",
+            "options": ["build in-house", "license open-weight"]
+        }
+        response = client.post("/decisions", json=payload)
+        assert response.status_code == 200
+        data = response.json()
+        assert data["stage_providers"]["ingestion"] == "nvidia_nim"
+        assert data["stage_providers"]["stack_mapping"] == "gemini"
+        assert data["stage_providers"]["orchestrator"] == "gemini"
+        assert data["verification_passed"] is True
+        assert data["verdict"]["recommended_path"] == "Build"
