@@ -327,7 +327,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 - [x] 10.3.2 — Extend `backend/app/core/config.py` to parse the new env vars and build a per-provider config object (api_key, base_url, model) for each of the four providers. Unit test for valid and malformed `LLM_PROVIDER_CHAIN` values.
   Commit: `Update - 10.3.2 - parse multi-provider config`
 
-- [ ] 10.3.3 — Add `backend/app/llm/errors.py` defining `RateLimitError`, `AuthError`, `ServerError`, plus a mapper from HTTP status / provider SDK exception to the right type — reuse existing status-code mapping logic in `client.py` rather than duplicating it. Unit test covering 429, 401/403, 5xx, and the Gemini-specific 503 "UNAVAILABLE" case seen in production logs.
+- [x] 10.3.3 — Add `backend/app/llm/errors.py` defining `RateLimitError`, `AuthError`, `ServerError`, plus a mapper from HTTP status / provider SDK exception to the right type — reuse existing status-code mapping logic in `client.py` rather than duplicating it. Unit test covering 429, 401/403, 5xx, and the Gemini-specific 503 "UNAVAILABLE" case seen in production logs.
   Commit: `Update - 10.3.3 - provider error taxonomy`
 
 - [ ] 10.3.4 — Add one adapter function per provider (`nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`) taking (prompt, config) and returning text, raising `errors.py` exception types on failure. Extract from the provider logic already inside `client.py`'s single call function — don't duplicate. Unit test per adapter with a mocked response.
