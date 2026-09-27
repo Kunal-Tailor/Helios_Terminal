@@ -19,6 +19,7 @@ interface AgentPipelineTopologyProps {
   status: JobStatusResponse['status'] | 'idle';
   verificationResults?: VerificationResult[];
   recalibrationTrail?: RecalibrationTrailItem[];
+  stageProviders?: Record<string, string>;
   error?: string | null;
 }
 
@@ -86,6 +87,7 @@ export const AgentPipelineTopology: React.FC<AgentPipelineTopologyProps> = ({
   status,
   verificationResults = [],
   recalibrationTrail = [],
+  stageProviders,
   error,
 }) => {
   const [activeStageIdx, setActiveStageIdx] = React.useState<number>(
@@ -186,6 +188,11 @@ export const AgentPipelineTopology: React.FC<AgentPipelineTopologyProps> = ({
                   <span className="font-bold text-[11px] text-[var(--bb-text-bright)]">
                     {stage.name}
                   </span>
+                  {stageProviders?.[stage.key] && (
+                    <span className="text-[9px] px-1.5 py-0.5 bg-[var(--bb-bg-surface)] text-[var(--bb-cyan)] border border-[var(--bb-cyan)]/40 rounded font-mono uppercase tracking-tight">
+                      {stageProviders[stage.key]}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex items-center gap-1.5">

@@ -228,6 +228,7 @@ export const Dashboard: React.FC = () => {
                 status={state === 'idle' ? 'idle' : jobStatus}
                 verificationResults={result?.verification_results}
                 recalibrationTrail={result?.recalibration_trail}
+                stageProviders={result?.stage_providers}
                 error={error}
               />
             </div>

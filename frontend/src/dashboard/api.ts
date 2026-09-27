@@ -63,6 +63,7 @@ export interface VerificationResult {
   reason: string;
   claim: string;
   agent_stage: string;
+  provider?: string | null;
 }
 
 export interface RecalibrationTrailItem {
@@ -71,6 +72,7 @@ export interface RecalibrationTrailItem {
   reason: string;
   gap_description: string;
   iteration_count: number;
+  provider?: string | null;
 }
 
 export interface OrchestratorVerdict {

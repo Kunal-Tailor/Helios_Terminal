@@ -148,6 +148,11 @@ export const AuditInspector: React.FC<AuditInspectorProps> = ({
                     <span className="font-bold text-[11px] text-[var(--bb-amber)] uppercase">
                       {vr.agent_stage}
                     </span>
+                    {vr.provider && (
+                      <span className="text-[9px] px-1.5 py-0.2 bg-[var(--bb-bg-surface)] text-[var(--bb-cyan)] border border-[var(--bb-cyan)]/40 rounded font-mono uppercase tracking-tight">
+                        {vr.provider}
+                      </span>
+                    )}
                   </div>
                   <span
                     className={`text-[9px] px-1.5 py-0.5 rounded font-bold ${
