@@ -127,6 +127,7 @@ class RecalibrationRequest:
     reason: RecalibrationReason
     gap_description: str
     iteration_count: int
+    provider: str | None = None
 
     # ------------------------------------------------------------------
     # Validation
@@ -176,7 +177,10 @@ class RecalibrationRequest:
             ``{"from_stage": ..., "to_stage": ..., "reason": ...,
                "gap_description": ..., "iteration_count": ...}``
         """
-        return asdict(self)
+        d = asdict(self)
+        if self.provider is None:
+            d.pop("provider", None)
+        return d
 
     @classmethod
     def from_dict(cls, data: dict) -> "RecalibrationRequest":
@@ -207,6 +211,7 @@ class RecalibrationRequest:
             reason=data["reason"],
             gap_description=data["gap_description"],
             iteration_count=data["iteration_count"],
+            provider=data.get("provider"),
         )
 
 

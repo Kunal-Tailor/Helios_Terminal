@@ -82,6 +82,8 @@ def test_post_decisions_endpoint_success():
         assert data["verdict"]["verdict_summary"] == "License open-weight model is recommended due to tactical offline autonomy."
         assert "recalibration_trail" in data
         assert data["recalibration_trail"] == []
+        assert "stage_providers" in data
+        assert isinstance(data["stage_providers"], dict)
 
         mock_run.assert_called_once_with(
             entity="Indian Army signals division",
@@ -105,6 +107,7 @@ def test_post_decisions_endpoint_surfaces_recalibration_trail():
         reason="insufficient",
         gap_description="Only 1 surviving layer; need additional grounding facts.",
         iteration_count=1,
+        provider="nvidia_nim",
     )
 
     mock_result = PipelineResult(
@@ -115,6 +118,7 @@ def test_post_decisions_endpoint_surfaces_recalibration_trail():
         verification_passed=True,
         recalibration_trail=[mock_recal],
         partial_verdict_caveats=["Constrained recalibration on stack_mapping -> ingestion."],
+        stage_providers={"stack_mapping": "nvidia_nim", "ingestion": "gemini"},
     )
 
     payload = {
@@ -136,9 +140,13 @@ def test_post_decisions_endpoint_surfaces_recalibration_trail():
         assert item["reason"] == "insufficient"
         assert item["gap_description"] == "Only 1 surviving layer; need additional grounding facts."
         assert item["iteration_count"] == 1
+        assert item["provider"] == "nvidia_nim"
 
         assert "partial_verdict_caveats" in data
         assert len(data["partial_verdict_caveats"]) == 1
+        assert "stage_providers" in data
+        assert data["stage_providers"]["stack_mapping"] == "nvidia_nim"
+        assert data["stage_providers"]["ingestion"] == "gemini"
 
 
 def test_post_decisions_endpoint_validation_error():

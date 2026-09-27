@@ -88,6 +88,7 @@ class VerificationResultSchema(BaseModel):
     reason: str
     claim: str
     agent_stage: str
+    provider: Optional[str] = Field(None, description="The LLM provider that answered this stage/claim verification.")
 
 
 class RecalibrationRequestSchema(BaseModel):
@@ -98,6 +99,7 @@ class RecalibrationRequestSchema(BaseModel):
     reason: str = Field(..., description="Category of failure: 'insufficient' or 'unverified'.")
     gap_description: str = Field(..., description="Human-readable description of what was missing.")
     iteration_count: int = Field(..., description="The iteration count for this stage-pair loop-back.")
+    provider: Optional[str] = Field(None, description="The LLM provider that served this recalibration call.")
 
     @classmethod
     def from_dataclass(cls, req: RecalibrationRequest | dict) -> RecalibrationRequestSchema:
@@ -109,6 +111,7 @@ class RecalibrationRequestSchema(BaseModel):
                 reason=req["reason"],
                 gap_description=req["gap_description"],
                 iteration_count=req["iteration_count"],
+                provider=req.get("provider"),
             )
         return cls(
             from_stage=req.from_stage,
@@ -116,6 +119,7 @@ class RecalibrationRequestSchema(BaseModel):
             reason=req.reason,
             gap_description=req.gap_description,
             iteration_count=req.iteration_count,
+            provider=getattr(req, "provider", None),
         )
 
 
@@ -196,6 +200,10 @@ class DecisionResponse(BaseModel):
         default_factory=list,
         description="Explicit per-path caveat flags emitted if retry caps were exceeded.",
     )
+    stage_providers: dict[str, str] = Field(
+        default_factory=dict,
+        description="Map of pipeline stage names to the LLM provider that answered each stage.",
+    )
 
     @classmethod
     def from_pipeline_result(cls, res: PipelineResult) -> DecisionResponse:
@@ -212,6 +220,7 @@ class DecisionResponse(BaseModel):
                 reason=vr.reason,
                 claim=vr.claim,
                 agent_stage=vr.agent_stage,
+                provider=getattr(vr, "provider", None),
             )
             for vr in res.verification_results
         ]
@@ -220,6 +229,7 @@ class DecisionResponse(BaseModel):
             for req in res.recalibration_trail
         ]
         caveats = list(getattr(res, "partial_verdict_caveats", []))
+        stage_provs = dict(getattr(res, "stage_providers", {}) or {})
 
         return cls(
             entity=res.entity,
@@ -231,6 +241,7 @@ class DecisionResponse(BaseModel):
             verification_results=ver_results,
             recalibration_trail=recal_trail,
             partial_verdict_caveats=caveats,
+            stage_providers=stage_provs,
         )
 
 

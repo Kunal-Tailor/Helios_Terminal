@@ -120,8 +120,10 @@ def test_decision_response_from_pipeline_result():
     assert len(resp.verification_results) == 1
     assert resp.verification_results[0].passed is True
     assert resp.verification_results[0].agent_stage == "ingestion"
+    assert resp.verification_results[0].provider is None
     assert resp.recalibration_trail == []
     assert resp.partial_verdict_caveats == []
+    assert resp.stage_providers == {}
 
 
 def test_recalibration_request_schema_from_dataclass_and_dict():
@@ -132,6 +134,7 @@ def test_recalibration_request_schema_from_dataclass_and_dict():
         reason="insufficient",
         gap_description="Only 1 surviving layer; need additional grounding facts.",
         iteration_count=1,
+        provider="nvidia_nim",
     )
     schema = RecalibrationRequestSchema.from_dataclass(req_dc)
     assert schema.from_stage == "stack_mapping"
@@ -139,15 +142,18 @@ def test_recalibration_request_schema_from_dataclass_and_dict():
     assert schema.reason == "insufficient"
     assert schema.gap_description == "Only 1 surviving layer; need additional grounding facts."
     assert schema.iteration_count == 1
+    assert schema.provider == "nvidia_nim"
 
     dump = schema.model_dump()
     assert dump["from_stage"] == "stack_mapping"
     assert dump["iteration_count"] == 1
+    assert dump["provider"] == "nvidia_nim"
 
     # Also test from_dataclass with dict input
     schema2 = RecalibrationTrailItemSchema.from_dataclass(dump)
     assert schema2.from_stage == "stack_mapping"
     assert schema2.iteration_count == 1
+    assert schema2.provider == "nvidia_nim"
 
 
 def test_decision_response_with_recalibration_trail():
@@ -164,6 +170,7 @@ def test_decision_response_with_recalibration_trail():
         reason="insufficient",
         gap_description="Insufficient layer mapping.",
         iteration_count=1,
+        provider="nvidia_nim",
     )
     req2 = RecalibrationRequest(
         from_stage="scenario_generation",
@@ -171,6 +178,7 @@ def test_decision_response_with_recalibration_trail():
         reason="insufficient",
         gap_description="Fewer than 2 scenarios generated.",
         iteration_count=1,
+        provider="openrouter",
     )
     res = PipelineResult(
         entity="ACME Corp",
@@ -180,18 +188,34 @@ def test_decision_response_with_recalibration_trail():
         verification_passed=True,
         recalibration_trail=[req1, req2],
         partial_verdict_caveats=["Caveat: retry cap hit on stage pair."],
+        stage_providers={
+            "ingestion": "nvidia_nim",
+            "stack_mapping": "nvidia_nim",
+            "scenario_generation": "openrouter",
+            "outcome_prediction": "gemini",
+            "dependency_diagnosis": "gemini",
+            "orchestrator": "deepseek_direct",
+        },
     )
 
     resp = DecisionResponse.from_pipeline_result(res)
     assert len(resp.recalibration_trail) == 2
     assert resp.recalibration_trail[0].from_stage == "stack_mapping"
     assert resp.recalibration_trail[0].to_stage == "ingestion"
+    assert resp.recalibration_trail[0].provider == "nvidia_nim"
     assert resp.recalibration_trail[1].from_stage == "scenario_generation"
     assert resp.recalibration_trail[1].to_stage == "stack_mapping"
+    assert resp.recalibration_trail[1].provider == "openrouter"
     assert len(resp.partial_verdict_caveats) == 1
+    assert resp.stage_providers["ingestion"] == "nvidia_nim"
+    assert resp.stage_providers["orchestrator"] == "deepseek_direct"
 
     dump = resp.model_dump()
     assert len(dump["recalibration_trail"]) == 2
     assert dump["recalibration_trail"][0]["from_stage"] == "stack_mapping"
+    assert dump["recalibration_trail"][0]["provider"] == "nvidia_nim"
     assert dump["recalibration_trail"][1]["to_stage"] == "stack_mapping"
+    assert dump["recalibration_trail"][1]["provider"] == "openrouter"
     assert dump["partial_verdict_caveats"] == ["Caveat: retry cap hit on stage pair."]
+    assert dump["stage_providers"]["ingestion"] == "nvidia_nim"
+    assert dump["stage_providers"]["scenario_generation"] == "openrouter"

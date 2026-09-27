@@ -1703,3 +1703,109 @@ def test_pipeline_partial_verdict_terminal_state_on_loop_guard_exceeded():
         assert "stack_mapping → ingestion" in caveat
         assert "cap=1" in caveat
         assert "constrained recalibration" in caveat
+
+
+def test_pipeline_stage_providers_recorded():
+    """Verify that serving providers are recorded into stage_providers and verification results."""
+    from app.api.schemas import DecisionResponse
+
+    context = IngestionContext(
+        entity="Corp",
+        capability="AI",
+        options=["A", "B"],
+        context_summary="Corp requires AI capability under clear scope.",
+        key_facts=["Corp requires AI capability under clear scope."],
+        sources=["https://example.com"],
+    )
+    scope = StackScope(
+        entity="Corp",
+        capability="AI",
+        layers=[
+            StackLayer(name="Model", rationale="AI capability", evidence="Corp requires AI capability under clear scope."),
+            StackLayer(name="Infra", rationale="AI capability", evidence="Corp requires AI capability under clear scope."),
+        ],
+        links=[LayerLink(from_layer="Model", to_layer="Infra", dependency_type="Hardware", description="Requires compute")],
+    )
+    scenarios = ScenarioSet(
+        entity="Corp",
+        capability="AI",
+        scenarios=[
+            Scenario(name="Build", option_name="A", description="Corp requires AI capability under clear scope.", layers_addressed=["Model"]),
+            Scenario(name="Buy", option_name="B", description="Corp requires AI capability under clear scope.", layers_addressed=["Infra"]),
+        ],
+    )
+    outcomes = OutcomeSet(
+        entity="Corp",
+        capability="AI",
+        outcomes=[
+            OutcomeProjection(
+                scenario_name="Build",
+                trajectory=Trajectory(scenario_name="Build", summary="Corp requires AI capability under clear scope."),
+                risk_factors=[RiskFactor(scenario_name="Build", factor_name="Risk", description="Desc")],
+            ),
+            OutcomeProjection(
+                scenario_name="Buy",
+                trajectory=Trajectory(scenario_name="Buy", summary="Corp requires AI capability under clear scope."),
+                risk_factors=[RiskFactor(scenario_name="Buy", factor_name="Risk", description="Desc")],
+            ),
+        ],
+    )
+    diagnoses = DiagnosisSet(
+        entity="Corp",
+        capability="AI",
+        diagnoses=[
+            DependencyDiagnosis(
+                scenario_name="Build",
+                dependencies=[
+                    LockInDependency(
+                        scenario_name="Build",
+                        dependency_name="Compute",
+                        lock_in_type="Compute",
+                        description="Corp requires AI capability under clear scope.",
+                    )
+                ],
+                failure_modes=[
+                    FailureMode(
+                        scenario_name="Build",
+                        dependency_name="Compute",
+                        failure_mode_title="Title",
+                        what_breaks="Corp requires AI capability under clear scope.",
+                    )
+                ],
+            )
+        ],
+    )
+    verdict = OrchestratorVerdict(
+        entity="Corp",
+        capability="AI",
+        recommended_path="Build",
+        verdict_summary="Build path recommended.",
+    )
+
+    with patch("app.agents.ingestion.ingestion_agent.run", return_value=context), \
+         patch("app.agents.stack_mapping.stack_mapping_agent.run", return_value=scope), \
+         patch("app.agents.scenario_generation.scenario_generation_agent.run", return_value=scenarios), \
+         patch("app.agents.outcome_prediction.outcome_prediction_agent.run", return_value=outcomes), \
+         patch("app.agents.dependency_diagnosis.dependency_diagnosis_agent.run", return_value=diagnoses), \
+         patch("app.agents.orchestrator.orchestrator_agent.run", return_value=verdict), \
+         patch("app.pipeline.graph.get_last_serving_provider", side_effect=[
+             "nvidia_nim",      # ingestion
+             "nvidia_nim",      # stack_mapping
+             "openrouter",      # scenario_generation
+             "gemini",          # outcome_prediction
+             "gemini",          # dependency_diagnosis
+             "deepseek_direct", # orchestrator
+         ]):
+
+        res = run_pipeline(entity="Corp", capability="AI", options=["A", "B"])
+        assert res.stage_providers["ingestion"] == "nvidia_nim"
+        assert res.stage_providers["stack_mapping"] == "nvidia_nim"
+        assert res.stage_providers["scenario_generation"] == "openrouter"
+        assert res.stage_providers["outcome_prediction"] == "gemini"
+        assert res.stage_providers["dependency_diagnosis"] == "gemini"
+        assert res.stage_providers["orchestrator"] == "deepseek_direct"
+
+        resp = DecisionResponse.from_pipeline_result(res)
+        assert resp.stage_providers["ingestion"] == "nvidia_nim"
+        assert resp.stage_providers["orchestrator"] == "deepseek_direct"
+        assert any(v.provider is not None for v in resp.verification_results)

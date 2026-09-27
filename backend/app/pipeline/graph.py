@@ -73,6 +73,7 @@ from app.verification.recalibration import (
     check_sufficiency_scenario_generation,
     check_sufficiency_stack_mapping,
 )
+from app.llm.client import get_last_serving_provider
 from app.verification.source_store import SourcedClaim, SourceStore
 from app.verification.verifier import VerificationResult, verify_stage
 
@@ -118,6 +119,8 @@ class PipelineResult:
         reaches sufficiency.  Each string identifies the stage pair that hit the cap and the
         insufficiency reason, so callers know the verdict was produced under constrained
         recalibration.  An empty list means the pipeline ran clean with no cap-hit events.
+    stage_providers:
+        Mapping of pipeline stage names to the LLM provider that answered each stage.
     """
 
     entity: str
@@ -135,6 +138,7 @@ class PipelineResult:
     verification_failed_stage: str | None = None
     recalibration_trail: list[RecalibrationRequest] = field(default_factory=list)
     partial_verdict_caveats: list[str] = field(default_factory=list)
+    stage_providers: dict[str, str] = field(default_factory=dict)
 
 
 def run_pipeline(
@@ -186,6 +190,10 @@ def run_pipeline(
             capability=capability,
             options=options_list,
         )
+        prov_1 = get_last_serving_provider()
+        if prov_1:
+            result.stage_providers["ingestion"] = prov_1
+
         if not result.ingestion_context or (not result.ingestion_context.context_summary and not result.ingestion_context.key_facts):
             result.verification_passed = False
             result.verification_failed_stage = "ingestion"
@@ -197,6 +205,7 @@ def run_pipeline(
                     reason=reason,
                     claim="Stage execution: ingestion",
                     agent_stage="ingestion",
+                    provider=prov_1,
                 )
             )
             logger.warning("Pipeline halted at stage 'ingestion' due to empty output.")
@@ -206,6 +215,9 @@ def run_pipeline(
             context_summary = result.ingestion_context.context_summary or ""
         _register_ingestion_claims(result.ingestion_context, source_store)
         vr_1 = verify_stage(source_store, "ingestion")
+        for v in vr_1:
+            if not v.provider:
+                v.provider = prov_1
         result.verification_results.extend(vr_1)
         if halt_on_verification_failure and any(not v.passed for v in vr_1):
             result.verification_passed = False
@@ -226,6 +238,7 @@ def run_pipeline(
                 reason=f"stage did not execute: {exc}",
                 claim="Stage execution: ingestion",
                 agent_stage="ingestion",
+                provider=get_last_serving_provider(),
             )
         )
         return result
@@ -238,6 +251,10 @@ def run_pipeline(
             result.stack_scope = stack_mapping_agent.run(
                 context=result.ingestion_context,
             )
+            prov_2 = get_last_serving_provider()
+            if prov_2:
+                result.stage_providers["stack_mapping"] = prov_2
+
             if not result.stack_scope or not result.stack_scope.layers:
                 result.verification_passed = False
                 result.verification_failed_stage = "stack_mapping"
@@ -249,6 +266,7 @@ def run_pipeline(
                         reason=reason,
                         claim="Stage execution: stack_mapping",
                         agent_stage="stack_mapping",
+                        provider=prov_2,
                     )
                 )
                 logger.warning("Pipeline halted at stage 'stack_mapping' due to empty output.")
@@ -256,6 +274,9 @@ def run_pipeline(
 
             _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
             vr_2 = verify_stage(source_store, "stack_mapping")
+            for v in vr_2:
+                if not v.provider:
+                    v.provider = prov_2
             result.verification_results.extend(vr_2)
             if halt_on_verification_failure and any(not v.passed for v in vr_2):
                 result.verification_passed = False
@@ -274,6 +295,7 @@ def run_pipeline(
                         reason="insufficient",
                         gap_description=suff_sm.reason,
                         iteration_count=iter_count,
+                        provider=get_last_serving_provider(),
                     )
                     result.recalibration_trail.append(recal_req)
                     logger.info(
@@ -287,12 +309,18 @@ def run_pipeline(
                         capability=f"{capability} (Gap: {suff_sm.reason})",
                         options=options_list,
                     )
+                    prov_re = get_last_serving_provider()
+                    if prov_re:
+                        result.stage_providers["ingestion"] = prov_re
                     result.ingestion_context = accumulate_ingestion_context(
                         result.ingestion_context,
                         re_ingest_ctx,
                     )
                     _register_ingestion_claims(re_ingest_ctx, source_store)
                     vr_re = verify_stage(source_store, "ingestion")
+                    for v in vr_re:
+                        if not v.provider:
+                            v.provider = prov_re
                     result.verification_results.extend(vr_re)
                     if halt_on_verification_failure and any(not v.passed for v in vr_re):
                         result.verification_passed = False
@@ -339,6 +367,10 @@ def run_pipeline(
             result.scenario_set = scenario_generation_agent.run(
                 stack_scope=result.stack_scope,
             )
+            prov_3 = get_last_serving_provider()
+            if prov_3:
+                result.stage_providers["scenario_generation"] = prov_3
+
             if not result.scenario_set or not result.scenario_set.scenarios:
                 result.verification_passed = False
                 result.verification_failed_stage = "scenario_generation"
@@ -350,6 +382,7 @@ def run_pipeline(
                         reason=reason,
                         claim="Stage execution: scenario_generation",
                         agent_stage="scenario_generation",
+                        provider=prov_3,
                     )
                 )
                 logger.warning("Pipeline halted at stage 'scenario_generation' due to empty output.")
@@ -357,6 +390,9 @@ def run_pipeline(
 
             _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
             vr_3 = verify_stage(source_store, "scenario_generation")
+            for v in vr_3:
+                if not v.provider:
+                    v.provider = prov_3
             result.verification_results.extend(vr_3)
             if halt_on_verification_failure and any(not v.passed for v in vr_3):
                 result.verification_passed = False
@@ -381,6 +417,7 @@ def run_pipeline(
                         reason="insufficient",
                         gap_description=gap_desc,
                         iteration_count=iter_count,
+                        provider=get_last_serving_provider(),
                     )
                     result.recalibration_trail.append(recal_req)
                     logger.info(
@@ -397,12 +434,18 @@ def run_pipeline(
                             capability=f"{capability} (Gap: {gap_desc})",
                             options=options_list,
                         )
+                        prov_re = get_last_serving_provider()
+                        if prov_re:
+                            result.stage_providers["ingestion"] = prov_re
                         result.ingestion_context = accumulate_ingestion_context(
                             result.ingestion_context,
                             re_ingest_ctx,
                         )
                         _register_ingestion_claims(re_ingest_ctx, source_store)
                         vr_re = verify_stage(source_store, "ingestion")
+                        for v in vr_re:
+                            if not v.provider:
+                                v.provider = prov_re
                         result.verification_results.extend(vr_re)
                         if halt_on_verification_failure and any(not v.passed for v in vr_re):
                             result.verification_passed = False
@@ -412,8 +455,14 @@ def run_pipeline(
 
                         # Also re-run Stack-Mapping with the newly accumulated context
                         result.stack_scope = stack_mapping_agent.run(context=result.ingestion_context)
+                        prov_sm = get_last_serving_provider()
+                        if prov_sm:
+                            result.stage_providers["stack_mapping"] = prov_sm
                         _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
                         vr_sm = verify_stage(source_store, "stack_mapping")
+                        for v in vr_sm:
+                            if not v.provider:
+                                v.provider = prov_sm
                         result.verification_results.extend(vr_sm)
                         if halt_on_verification_failure and any(not v.passed for v in vr_sm):
                             result.verification_passed = False
@@ -423,8 +472,14 @@ def run_pipeline(
                     else:
                         # target_stage == "stack_mapping": re-run Stack-Mapping to broaden layer scope
                         result.stack_scope = stack_mapping_agent.run(context=result.ingestion_context)
+                        prov_sm = get_last_serving_provider()
+                        if prov_sm:
+                            result.stage_providers["stack_mapping"] = prov_sm
                         _register_stack_mapping_claims(result.stack_scope, result.ingestion_context, source_store)
                         vr_sm = verify_stage(source_store, "stack_mapping")
+                        for v in vr_sm:
+                            if not v.provider:
+                                v.provider = prov_sm
                         result.verification_results.extend(vr_sm)
                         if halt_on_verification_failure and any(not v.passed for v in vr_sm):
                             result.verification_passed = False
@@ -473,6 +528,10 @@ def run_pipeline(
             result.outcome_set = outcome_prediction_agent.run(
                 scenario_set=result.scenario_set,
             )
+            prov_4 = get_last_serving_provider()
+            if prov_4:
+                result.stage_providers["outcome_prediction"] = prov_4
+
             if not result.outcome_set or not result.outcome_set.outcomes:
                 result.verification_passed = False
                 result.verification_failed_stage = "outcome_prediction"
@@ -484,6 +543,7 @@ def run_pipeline(
                         reason=reason,
                         claim="Stage execution: outcome_prediction",
                         agent_stage="outcome_prediction",
+                        provider=prov_4,
                     )
                 )
                 logger.warning("Pipeline halted at stage 'outcome_prediction' due to empty output.")
@@ -491,6 +551,9 @@ def run_pipeline(
 
             _register_outcome_prediction_claims(result.outcome_set, result.scenario_set, source_store)
             vr_4 = verify_stage(source_store, "outcome_prediction")
+            for v in vr_4:
+                if not v.provider:
+                    v.provider = prov_4
             result.verification_results.extend(vr_4)
             if halt_on_verification_failure and any(not v.passed for v in vr_4):
                 result.verification_passed = False
@@ -512,6 +575,7 @@ def run_pipeline(
                         reason="insufficient",
                         gap_description=gap_desc,
                         iteration_count=iter_count,
+                        provider=get_last_serving_provider(),
                     )
                     result.recalibration_trail.append(recal_req)
                     logger.info(
@@ -535,6 +599,9 @@ def run_pipeline(
                         options=candidate_options,
                         stack_scope=stack_scope_for_refine,
                     )
+                    prov_ref = get_last_serving_provider()
+                    if prov_ref:
+                        result.stage_providers["scenario_generation"] = prov_ref
                     if refined_scenarios:
                         result.scenario_set = ScenarioSet(
                             entity=entity,
@@ -543,6 +610,9 @@ def run_pipeline(
                         )
                     _register_scenario_generation_claims(result.scenario_set, result.stack_scope, source_store)
                     vr_sg = verify_stage(source_store, "scenario_generation")
+                    for v in vr_sg:
+                        if not v.provider:
+                            v.provider = prov_ref
                     result.verification_results.extend(vr_sg)
                     if halt_on_verification_failure and any(not v.passed for v in vr_sg):
                         result.verification_passed = False
@@ -578,6 +648,7 @@ def run_pipeline(
                 reason=f"stage did not execute: {exc}",
                 claim="Stage execution: outcome_prediction",
                 agent_stage="outcome_prediction",
+                provider=get_last_serving_provider(),
             )
         )
         return result
@@ -590,6 +661,10 @@ def run_pipeline(
             result.diagnosis_set = dependency_diagnosis_agent.run(
                 outcome_set=result.outcome_set,
             )
+            prov_5 = get_last_serving_provider()
+            if prov_5:
+                result.stage_providers["dependency_diagnosis"] = prov_5
+
             if not result.diagnosis_set or not result.diagnosis_set.diagnoses:
                 result.verification_passed = False
                 result.verification_failed_stage = "dependency_diagnosis"
@@ -601,6 +676,7 @@ def run_pipeline(
                         reason=reason,
                         claim="Stage execution: dependency_diagnosis",
                         agent_stage="dependency_diagnosis",
+                        provider=prov_5,
                     )
                 )
                 logger.warning("Pipeline halted at stage 'dependency_diagnosis' due to empty output.")
@@ -608,6 +684,9 @@ def run_pipeline(
 
             _register_dependency_diagnosis_claims(result.diagnosis_set, result.outcome_set, source_store)
             vr_5 = verify_stage(source_store, "dependency_diagnosis")
+            for v in vr_5:
+                if not v.provider:
+                    v.provider = prov_5
             result.verification_results.extend(vr_5)
             if halt_on_verification_failure and any(not v.passed for v in vr_5):
                 result.verification_passed = False
@@ -628,6 +707,7 @@ def run_pipeline(
                     reason=f"stage did not execute: {exc}",
                     claim="Stage execution: dependency_diagnosis",
                     agent_stage="dependency_diagnosis",
+                    provider=get_last_serving_provider(),
                 )
             )
             return result
@@ -667,6 +747,7 @@ def run_pipeline(
                 reason="insufficient",
                 gap_description=gap,
                 iteration_count=iter_count,
+                provider=get_last_serving_provider(),
             )
         )
         logger.info(
@@ -684,6 +765,9 @@ def run_pipeline(
             trajectories=trajectories,
             scenarios=scenarios,
         )
+        prov_tp = get_last_serving_provider()
+        if prov_tp:
+            result.stage_providers["outcome_prediction"] = prov_tp
 
         # Attach returned TimelineProjection objects to matching OutcomeProjection entries
         timeline_map = {tp.scenario_name: tp for tp in timeline_projections}
@@ -708,6 +792,10 @@ def run_pipeline(
                 diagnosis_set=result.diagnosis_set,
                 sources=sources,
             )
+            prov_6 = get_last_serving_provider()
+            if prov_6:
+                result.stage_providers["orchestrator"] = prov_6
+
             if not result.verdict or (not result.verdict.recommended_path and not result.verdict.verdict_summary):
                 result.verification_passed = False
                 result.verification_failed_stage = "orchestrator"
@@ -719,6 +807,7 @@ def run_pipeline(
                         reason=reason,
                         claim="Stage execution: orchestrator",
                         agent_stage="orchestrator",
+                        provider=prov_6,
                     )
                 )
                 logger.warning("Pipeline halted at stage 'orchestrator' due to empty output.")
@@ -726,6 +815,9 @@ def run_pipeline(
 
             _register_orchestrator_claims(result.verdict, result.diagnosis_set, source_store)
             vr_6 = verify_stage(source_store, "orchestrator")
+            for v in vr_6:
+                if not v.provider:
+                    v.provider = prov_6
             result.verification_results.extend(vr_6)
             if halt_on_verification_failure and any(not v.passed for v in vr_6):
                 result.verification_passed = False
@@ -746,6 +838,7 @@ def run_pipeline(
                     reason=f"stage did not execute: {exc}",
                     claim="Stage execution: orchestrator",
                     agent_stage="orchestrator",
+                    provider=get_last_serving_provider(),
                 )
             )
             return result
@@ -786,6 +879,7 @@ def run_pipeline(
                 reason="insufficient",
                 gap_description=gap,
                 iteration_count=iter_count,
+                provider=get_last_serving_provider(),
             )
         )
         logger.info("Stage 6 recalibration (%d): %s", iter_count, gap)
@@ -805,6 +899,9 @@ def run_pipeline(
 
         # Re-run Dependency-Diagnosis for only the deficient paths
         new_diag_set = dependency_diagnosis_agent.run(outcome_set=scoped_outcome_set)
+        prov_nd = get_last_serving_provider()
+        if prov_nd:
+            result.stage_providers["dependency_diagnosis"] = prov_nd
 
         # Merge: replace deficient path diagnoses in result.diagnosis_set; keep the rest untouched
         new_diag_map = {d.scenario_name.lower(): d for d in new_diag_set.diagnoses}

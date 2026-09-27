@@ -342,7 +342,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 - [x] 10.3.7 — Add fallback-specific tests: (a) forced `RateLimitError` on provider 1 falls through to provider 2, (b) all providers exhausted raises `AllProvidersExhaustedError`, (c) a provider within cooldown is skipped without being called again, (d) `LLM_PROVIDER_MODE=manual` never invokes chain/cooldown logic.
   Commit: `Update - 10.3.7 - fallback and cooldown test coverage`
 
-- [ ] 10.3.8 — Record which provider served each call into the structure backing `recalibration_trail`/verification metadata (Phase 7.5.11), so the API response shows which provider answered each pipeline stage. Update response schema and its test if the shape changes.
+- [x] 10.3.8 — Record which provider served each call into the structure backing `recalibration_trail`/verification metadata (Phase 7.5.11), so the API response shows which provider answered each pipeline stage. Update response schema and its test if the shape changes.
   Commit: `Update - 10.3.8 - log serving provider per call`
 
 - [ ] 10.3.9 — Full manual verification: set `LLM_PROVIDER_CHAIN` to `nvidia_nim,gemini` only, run one real decision brief, then forcibly exhaust `nvidia_nim` and confirm automatic failover to `gemini` mid-run, no manual intervention, no broken endpoint behavior.

@@ -81,6 +81,7 @@ class VerificationResult:
     reason: str
     claim: str
     agent_stage: str
+    provider: str | None = None
 
 
 # ---------------------------------------------------------------------------
