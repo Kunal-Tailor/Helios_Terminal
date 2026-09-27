@@ -29,7 +29,7 @@ import re
 from dataclasses import dataclass
 
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def run(stack_scope: StackScope) -> list[Option]:
     """
     prompt = _build_prompt(stack_scope)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response)
     except Exception as exc:
         logger.error(

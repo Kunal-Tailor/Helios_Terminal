@@ -29,7 +29,7 @@ from dataclasses import dataclass, field
 
 from app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent import Option
 from app.agents.stack_mapping.stack_mapping_agent import StackScope
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ def run(options: list[Option], stack_scope: StackScope) -> list[Scenario]:
 
     prompt = _build_prompt(options, stack_scope)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response, options)
     except Exception as exc:
         logger.error(

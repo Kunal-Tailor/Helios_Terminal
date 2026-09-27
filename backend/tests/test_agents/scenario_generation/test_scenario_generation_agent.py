@@ -148,9 +148,9 @@ def test_unit_run_handles_all_empty_sub_agent_outputs():
 # Real sub-agent parsing / fallback logic executes end-to-end
 # ---------------------------------------------------------------------------
 
-_OE_LLM = "app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent.complete"
-_FC_LLM = "app.agents.scenario_generation.sub_agents.feasibility_check_sub_agent.complete"
-_SR_LLM = "app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent.complete"
+_OE_LLM = "app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent.call_llm_with_fallback"
+_FC_LLM = "app.agents.scenario_generation.sub_agents.feasibility_check_sub_agent.call_llm_with_fallback"
+_SR_LLM = "app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent.call_llm_with_fallback"
 
 _OE_RESPONSE = """\
 OPTION: Build in-house

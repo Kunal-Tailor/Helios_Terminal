@@ -78,7 +78,7 @@ REASON: Licensing is a secondary concern for an internal edge deployment.
 ---
 """
 
-_LLM_PATH = "app.agents.stack_mapping.sub_agents.relevance_filter_sub_agent.complete"
+_LLM_PATH = "app.agents.stack_mapping.sub_agents.relevance_filter_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

@@ -95,7 +95,7 @@ LAYERS: Model Weights, Inference Infrastructure
 ---
 """
 
-_LLM_PATH = "app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent.complete"
+_LLM_PATH = "app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

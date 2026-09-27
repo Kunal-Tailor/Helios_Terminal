@@ -74,7 +74,7 @@ RATIONALE: Transfers responsibility for both Model Weights and Inference Infrast
 ---
 """
 
-_LLM_PATH = "app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent.complete"
+_LLM_PATH = "app.agents.scenario_generation.sub_agents.option_enumeration_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

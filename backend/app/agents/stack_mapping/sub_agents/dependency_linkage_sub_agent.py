@@ -29,7 +29,7 @@ from dataclasses import dataclass
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ def run(layers: list[StackLayer], context: IngestionContext) -> list[LayerLink]:
 
     prompt = _build_prompt(layers, context)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response)
     except Exception as exc:
         logger.error(

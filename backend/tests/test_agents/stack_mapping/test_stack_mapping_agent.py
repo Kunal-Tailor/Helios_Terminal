@@ -157,9 +157,9 @@ def test_unit_run_handles_all_empty_sub_agent_outputs():
 # Real sub-agent logic executes end-to-end through the parent
 # ---------------------------------------------------------------------------
 
-_LLM_PATH = "app.agents.stack_mapping.sub_agents.layer_identification_sub_agent.complete"
-_FILTER_LLM_PATH = "app.agents.stack_mapping.sub_agents.relevance_filter_sub_agent.complete"
-_LINK_LLM_PATH = "app.agents.stack_mapping.sub_agents.dependency_linkage_sub_agent.complete"
+_LLM_PATH = "app.agents.stack_mapping.sub_agents.layer_identification_sub_agent.call_llm_with_fallback"
+_FILTER_LLM_PATH = "app.agents.stack_mapping.sub_agents.relevance_filter_sub_agent.call_llm_with_fallback"
+_LINK_LLM_PATH = "app.agents.stack_mapping.sub_agents.dependency_linkage_sub_agent.call_llm_with_fallback"
 
 _LAYER_ID_RESPONSE = """\
 LAYER: Model Weights

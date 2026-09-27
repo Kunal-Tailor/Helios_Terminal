@@ -26,7 +26,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.agents.scenario_generation.sub_agents.scenario_refinement_sub_agent import Scenario
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,7 @@ def run(scenarios: list[Scenario]) -> list[Trajectory]:
 
     prompt = _build_prompt(scenarios)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response, scenarios)
     except Exception as exc:
         logger.error(

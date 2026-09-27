@@ -78,7 +78,7 @@ RATIONALE: Open-weight schemas are standardized across open-source inference bac
 ---
 """
 
-_LLM_PATH = "app.agents.dependency_diagnosis.sub_agents.severity_scoring_sub_agent.complete"
+_LLM_PATH = "app.agents.dependency_diagnosis.sub_agents.severity_scoring_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

@@ -33,7 +33,7 @@ import re
 from dataclasses import dataclass, field
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -84,7 +84,7 @@ def run(context: IngestionContext) -> list[StackLayer]:
     """
     prompt = _build_prompt(context)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response)
     except Exception as exc:
         logger.error(

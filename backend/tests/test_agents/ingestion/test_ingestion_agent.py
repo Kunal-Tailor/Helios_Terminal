@@ -151,7 +151,7 @@ def test_unit_run_returns_synthesis_output_directly():
 _SEARCH_MOCK = "app.agents.ingestion.sub_agents.web_scraping_sub_agent.search"
 _HF_MOCK = "app.agents.ingestion.sub_agents.structured_source_sub_agent.httpx.get"
 _WS_MOCK = "app.agents.ingestion.sub_agents.structured_source_sub_agent.web_search"
-_LLM_MOCK = "app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete"
+_LLM_MOCK = "app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback"
 
 _MOCK_SEARCH_RESULTS = [
     SearchResult(

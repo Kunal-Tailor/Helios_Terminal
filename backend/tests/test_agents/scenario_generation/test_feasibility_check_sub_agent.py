@@ -98,7 +98,7 @@ REASON: Multiple vendors offer managed AI services that meet ACME Corp's edge de
 ---
 """
 
-_LLM_PATH = "app.agents.scenario_generation.sub_agents.feasibility_check_sub_agent.complete"
+_LLM_PATH = "app.agents.scenario_generation.sub_agents.feasibility_check_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

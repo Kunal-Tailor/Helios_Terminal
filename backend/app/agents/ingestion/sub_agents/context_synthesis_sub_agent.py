@@ -26,7 +26,7 @@ import logging
 import re
 from dataclasses import dataclass, field
 
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 from app.retrieval.web_search import SearchResult
 
 logger = logging.getLogger(__name__)
@@ -115,7 +115,7 @@ def run(
     prompt = _build_prompt(entity, capability, options, web_results, structured_results)
 
     try:
-        llm_response = complete(prompt)
+        llm_response = call_llm_with_fallback(prompt)
         context_summary, key_facts = _parse_llm_response(llm_response)
     except Exception as exc:
         logger.error(

@@ -72,7 +72,7 @@ OPERATIONAL IMPACT: Lean operational footprint focused on fine-tuning rather tha
 ---
 """
 
-_LLM_PATH = "app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent.complete"
+_LLM_PATH = "app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

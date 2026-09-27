@@ -165,9 +165,9 @@ def test_unit_run_handles_empty_diagnoses():
 # Real sub-agent parsing logic executes end-to-end through the parent
 # ---------------------------------------------------------------------------
 
-_CPC_LLM = "app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent.complete"
-_VS_LLM = "app.agents.orchestrator.sub_agents.verdict_synthesis_sub_agent.complete"
-_ET_LLM = "app.agents.orchestrator.sub_agents.explanation_trail_sub_agent.complete"
+_CPC_LLM = "app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent.call_llm_with_fallback"
+_VS_LLM = "app.agents.orchestrator.sub_agents.verdict_synthesis_sub_agent.call_llm_with_fallback"
+_ET_LLM = "app.agents.orchestrator.sub_agents.explanation_trail_sub_agent.call_llm_with_fallback"
 
 _CPC_RESPONSE = """\
 OVERALL ANALYSIS:

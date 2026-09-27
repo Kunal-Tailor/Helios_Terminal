@@ -78,7 +78,7 @@ DESCRIPTION: The edge inference infrastructure must be compatible with the chose
 ---
 """
 
-_LLM_PATH = "app.agents.stack_mapping.sub_agents.dependency_linkage_sub_agent.complete"
+_LLM_PATH = "app.agents.stack_mapping.sub_agents.dependency_linkage_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

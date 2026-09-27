@@ -79,7 +79,7 @@ _STRUCT_RESULTS = [
 
 def test_run_returns_ingestion_context():
     """run() returns an IngestionContext instance."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -88,7 +88,7 @@ def test_run_returns_ingestion_context():
 
 def test_run_populates_entity_capability_options():
     """run() copies entity, capability, options through to IngestionContext."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -99,7 +99,7 @@ def test_run_populates_entity_capability_options():
 
 def test_run_populates_context_summary():
     """run() populates context_summary from the LLM response."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -109,7 +109,7 @@ def test_run_populates_context_summary():
 
 def test_run_populates_key_facts():
     """run() populates key_facts as a non-empty list of strings."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -119,7 +119,7 @@ def test_run_populates_key_facts():
 
 def test_run_collects_sources_from_both_result_sets():
     """run() includes URLs from both web and structured results."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -133,7 +133,7 @@ def test_run_deduplicates_sources():
     web = [_web_result("Shared", shared_url)]
     struct = [_struct_result("BIS", "Entity", shared_url)]
 
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, web, struct)
 
@@ -142,7 +142,7 @@ def test_run_deduplicates_sources():
 
 def test_run_calls_llm_once():
     """run() makes exactly one call to the LLM."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                return_value=_WELL_FORMED_LLM_RESPONSE) as mock_llm:
         run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 
@@ -155,7 +155,7 @@ def test_run_calls_llm_once():
 
 def test_run_degrades_gracefully_when_llm_fails():
     """run() returns IngestionContext with empty summary/facts if LLM raises."""
-    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.complete",
+    with patch("app.agents.ingestion.sub_agents.context_synthesis_sub_agent.call_llm_with_fallback",
                side_effect=RuntimeError("DEEPSEEK_API_KEY is not set.")):
         result = run(_ENTITY, _CAPABILITY, _OPTIONS, _WEB_RESULTS, _STRUCT_RESULTS)
 

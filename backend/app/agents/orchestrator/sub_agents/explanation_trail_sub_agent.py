@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis
 from app.agents.orchestrator.sub_agents.verdict_synthesis_sub_agent import VerdictSynthesis
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -112,7 +112,7 @@ def run(
 
     prompt = _build_prompt(diagnoses, verdict, sources or [])
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         trail = _parse_response(response)
         trail.sources = list(dict.fromkeys(sources or []))
         return trail

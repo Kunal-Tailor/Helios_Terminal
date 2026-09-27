@@ -78,7 +78,7 @@ DESCRIPTION: Downstream fine-tuning depends entirely on the upstream maintainer'
 ---
 """
 
-_LLM_PATH = "app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent.complete"
+_LLM_PATH = "app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

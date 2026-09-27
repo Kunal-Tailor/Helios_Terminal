@@ -69,7 +69,7 @@ EVIDENCE: Comparative diagnosis showed significantly lower hardware lock-in comp
 ---
 """
 
-_LLM_PATH = "app.agents.orchestrator.sub_agents.explanation_trail_sub_agent.complete"
+_LLM_PATH = "app.agents.orchestrator.sub_agents.explanation_trail_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

@@ -172,9 +172,9 @@ def test_unit_run_handles_empty_trajectories():
 # Real sub-agent parsing logic executes end-to-end through the parent
 # ---------------------------------------------------------------------------
 
-_TM_LLM = "app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent.complete"
-_RF_LLM = "app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent.complete"
-_TP_LLM = "app.agents.outcome_prediction.sub_agents.timeline_projection_sub_agent.complete"
+_TM_LLM = "app.agents.outcome_prediction.sub_agents.trajectory_modeling_sub_agent.call_llm_with_fallback"
+_RF_LLM = "app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent.call_llm_with_fallback"
+_TP_LLM = "app.agents.outcome_prediction.sub_agents.timeline_projection_sub_agent.call_llm_with_fallback"
 
 _TM_RESPONSE = """\
 TRAJECTORY: Build custom LLM in-house

@@ -159,9 +159,9 @@ def test_unit_run_handles_empty_outcomes():
 # Real sub-agent parsing logic executes end-to-end through the parent
 # ---------------------------------------------------------------------------
 
-_LI_LLM = "app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent.complete"
-_FM_LLM = "app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent.complete"
-_SS_LLM = "app.agents.dependency_diagnosis.sub_agents.severity_scoring_sub_agent.complete"
+_LI_LLM = "app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent.call_llm_with_fallback"
+_FM_LLM = "app.agents.dependency_diagnosis.sub_agents.failure_mode_sub_agent.call_llm_with_fallback"
+_SS_LLM = "app.agents.dependency_diagnosis.sub_agents.severity_scoring_sub_agent.call_llm_with_fallback"
 
 _LI_RESPONSE = """\
 LOCK_IN: CUDA Hardware Architecture Entanglement

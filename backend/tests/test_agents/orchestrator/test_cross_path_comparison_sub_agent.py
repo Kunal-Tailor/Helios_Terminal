@@ -116,7 +116,7 @@ PATH_SUMMARY: Lower overall risk profile with moderate operational dependency on
 ---
 """
 
-_LLM_PATH = "app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent.complete"
+_LLM_PATH = "app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

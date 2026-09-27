@@ -78,7 +78,7 @@ MITIGATION: Pin model version and archive repository under current open license.
 ---
 """
 
-_LLM_PATH = "app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent.complete"
+_LLM_PATH = "app.agents.outcome_prediction.sub_agents.risk_factor_sub_agent.call_llm_with_fallback"
 
 
 # ---------------------------------------------------------------------------

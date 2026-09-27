@@ -26,7 +26,7 @@ from dataclasses import dataclass, field
 
 from app.agents.dependency_diagnosis.dependency_diagnosis_agent import DependencyDiagnosis
 from app.agents.orchestrator.sub_agents.cross_path_comparison_sub_agent import CrossPathComparison
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +93,7 @@ def run(
 
     prompt = _build_prompt(comparison, diagnoses, entity, capability)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response)
     except Exception as exc:
         logger.error(

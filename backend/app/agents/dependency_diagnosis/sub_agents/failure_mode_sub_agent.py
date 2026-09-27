@@ -26,7 +26,7 @@ from dataclasses import dataclass
 
 from app.agents.dependency_diagnosis.sub_agents.lock_in_identification_sub_agent import LockInDependency
 from app.agents.outcome_prediction.outcome_prediction_agent import OutcomeProjection
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -97,7 +97,7 @@ def run(
 
     prompt = _build_prompt(dependencies, outcomes or [])
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         return _parse_response(response, dependencies)
     except Exception as exc:
         logger.error(

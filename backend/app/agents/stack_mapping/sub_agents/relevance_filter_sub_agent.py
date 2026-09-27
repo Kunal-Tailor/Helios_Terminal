@@ -31,7 +31,7 @@ import re
 
 from app.agents.ingestion.sub_agents.context_synthesis_sub_agent import IngestionContext
 from app.agents.stack_mapping.sub_agents.layer_identification_sub_agent import StackLayer
-from app.llm.client import complete
+from app.llm.client import call_llm_with_fallback
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +64,7 @@ def run(layers: list[StackLayer], context: IngestionContext) -> list[StackLayer]
 
     prompt = _build_prompt(layers, context)
     try:
-        response = complete(prompt)
+        response = call_llm_with_fallback(prompt)
         keep_names = _parse_keep_names(response)
         return _filter_layers(layers, keep_names)
     except Exception as exc:
