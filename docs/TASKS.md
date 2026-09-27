@@ -324,7 +324,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 - [x] 10.3.1 — Replace `.env.example` (backend) with the 4-provider structure: `LLM_PROVIDER_MODE` (manual|auto), `LLM_PROVIDER_CHAIN` (comma-separated), `LLM_PROVIDER_COOLDOWN_SEC`, `LLM_PROVIDER_MAX_RETRIES_PER_CALL`, and per-provider key/base_url/model triplets for `nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`. Config file only, no code changes.
   Commit: `Update - 10.3.1 - redesign env for multi-provider fallback chain`
 
-- [ ] 10.3.2 — Extend `backend/app/core/config.py` to parse the new env vars and build a per-provider config object (api_key, base_url, model) for each of the four providers. Unit test for valid and malformed `LLM_PROVIDER_CHAIN` values.
+- [x] 10.3.2 — Extend `backend/app/core/config.py` to parse the new env vars and build a per-provider config object (api_key, base_url, model) for each of the four providers. Unit test for valid and malformed `LLM_PROVIDER_CHAIN` values.
   Commit: `Update - 10.3.2 - parse multi-provider config`
 
 - [ ] 10.3.3 — Add `backend/app/llm/errors.py` defining `RateLimitError`, `AuthError`, `ServerError`, plus a mapper from HTTP status / provider SDK exception to the right type — reuse existing status-code mapping logic in `client.py` rather than duplicating it. Unit test covering 429, 401/403, 5xx, and the Gemini-specific 503 "UNAVAILABLE" case seen in production logs.
