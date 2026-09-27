@@ -9,7 +9,7 @@
 // Base URL
 // ---------------------------------------------------------------------------
 
-const API_BASE = (() => {
+export const API_BASE = (() => {
   try {
     // Vite exposes env vars via import.meta.env
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -19,6 +19,18 @@ const API_BASE = (() => {
     return 'http://127.0.0.1:8000';
   }
 })();
+
+/**
+ * Checks if the backend server is reachable and reports healthy status.
+ */
+export async function checkBackendHealth(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/health`, { method: 'GET' });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // TypeScript interfaces (mirror backend Pydantic schemas)

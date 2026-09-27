@@ -330,6 +330,77 @@ def test_e2e_multi_provider_fallback_active_records_failover_provider():
         assert result["verification_results"][1]["provider"] == "gemini"
 
 
+def test_backend_health_and_midchain_failover_maintains_online_beacon():
+    """Verify backend health beacon endpoint /health remains 200 OK during job processing
+
+    and that mid-chain failover preserves healthy online state.
+    """
+    # 1. Health check returns 200 OK
+    health_res = client.get("/health")
+    assert health_res.status_code == 200
+    assert health_res.json() == {"status": "ok"}
+
+    brief_payload = {
+        "entity": "Indian Army signals division",
+        "capability": "tactical edge speech recognition",
+        "options": ["build in-house"],
+        "data_sovereignty_weight": "CRITICAL",
+        "latency_tolerance": "SUB_20MS",
+    }
+    mock_result = PipelineResult(
+        entity=brief_payload["entity"],
+        capability=brief_payload["capability"],
+        options=brief_payload["options"],
+        data_sovereignty_weight="CRITICAL",
+        latency_tolerance="SUB_20MS",
+        verdict=OrchestratorVerdict(
+            entity=brief_payload["entity"],
+            capability=brief_payload["capability"],
+            recommended_path="build in-house",
+            verdict_summary="Build in-house verdict.",
+        ),
+        stage_providers={"ingestion": "nvidia_nim", "stack_mapping": "gemini"},
+    )
+    with patch("app.api.routes.decisions.run_pipeline", return_value=mock_result):
+        # 2. Async job submission
+        post_res = client.post("/decisions/async", json=brief_payload)
+        assert post_res.status_code == 202
+        job_id = post_res.json()["job_id"]
+
+        # 3. Health check while job is active or completed remains 200 OK
+        health_during_job = client.get("/health")
+        assert health_during_job.status_code == 200
+        assert health_during_job.json() == {"status": "ok"}
+
+        # 4. Polling completes normally
+        poll_res = client.get(f"/decisions/jobs/{job_id}")
+        assert poll_res.status_code == 200
+        assert poll_res.json()["status"] == "completed"
+
+
+def test_backend_rate_limit_error_returns_503():
+    """Verify that an exhausted provider chain returns HTTP 503 from backend,
+
+    which is an HTTP server error response (not a network unreachable failure).
+    """
+    from openai import RateLimitError
+    import httpx
+
+    fake_request = httpx.Request("POST", "https://api.fake.com")
+    fake_response = httpx.Response(429, request=fake_request)
+
+    brief_payload = {
+        "entity": "Indian Army signals division",
+        "capability": "tactical edge speech recognition",
+        "options": ["build in-house"],
+    }
+
+    with patch("app.api.routes.decisions.run_pipeline", side_effect=RateLimitError("Rate limit exceeded", response=fake_response, body=None)):
+        res = client.post("/decisions", json=brief_payload)
+        assert res.status_code == 503
+        assert "LLM API rate limit exceeded" in res.json()["detail"]
+
+
 @pytest.mark.skipif(
     os.getenv("RUN_LIVE_E2E", "0") != "1" or not settings.llm_api_key,
     reason="Set RUN_LIVE_E2E=1 with a valid LLM API key to run the live non-mocked E2E pipeline verification pass",

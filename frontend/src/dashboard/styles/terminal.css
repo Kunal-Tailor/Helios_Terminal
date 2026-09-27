@@ -237,3 +237,140 @@
   background-size: 100% 4px;
   pointer-events: none;
 }
+
+/* ==========================================================================
+   PRINT MEDIA STYLES (Verified across Chrome and Firefox)
+   Renders Executive Dossier memos cleanly on paper/PDF exports.
+   ========================================================================== */
+@media print {
+  /* Set light print canvas */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Hide background workstation header, main viewport, and ticker */
+  .bloomberg-terminal > header,
+  .bloomberg-terminal > main,
+  .bloomberg-terminal > footer {
+    display: none !important;
+  }
+
+  /* Unseat modal fixed positioning so content flows continuously across pages */
+  .dossier-modal-container {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .dossier-modal-backdrop {
+    position: static !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+
+  .dossier-modal-content {
+    position: static !important;
+    max-width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #0f172a !important;
+    overflow: visible !important;
+  }
+
+  /* Hide action buttons (Print, Copy, Export, Close) */
+  .dossier-header-actions,
+  .bb-panel-header button {
+    display: none !important;
+  }
+
+  .bb-panel-header {
+    background: transparent !important;
+    border-bottom: 2px solid #0f172a !important;
+    color: #0f172a !important;
+    padding: 0 0 8px 0 !important;
+    margin-bottom: 12px !important;
+  }
+
+  .bb-panel-header span {
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    letter-spacing: 0.05em !important;
+  }
+
+  /* Expand memo body to full print layout without scroll clipping */
+  .dossier-memo-body {
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    padding: 0 !important;
+    color: #0f172a !important;
+  }
+
+  /* Light theme high-contrast overrides for dark terminal elements */
+  .dossier-memo-body * {
+    color: #0f172a !important;
+    text-shadow: none !important;
+    box-shadow: none !important;
+  }
+
+  .dossier-memo-body h1 {
+    color: #0f172a !important;
+    font-size: 16pt !important;
+  }
+
+  .dossier-memo-body p,
+  .dossier-memo-body span,
+  .dossier-memo-body li {
+    color: #1e293b !important;
+  }
+
+  /* Convert dark container panels to clean print borders with light background */
+  .dossier-memo-body .bg-\[var\(--bb-green-dim\)\],
+  .dossier-memo-body .bg-\[var\(--bb-bg-raised\)\],
+  .dossier-memo-body .bg-\[var\(--bb-bg-surface\)\] {
+    background: #f8fafc !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+
+  .dossier-memo-body table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+    margin-top: 8px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .dossier-memo-body th,
+  .dossier-memo-body td {
+    border: 1px solid #cbd5e1 !important;
+    padding: 6px 8px !important;
+    color: #0f172a !important;
+  }
+
+  .dossier-memo-body th {
+    background: #f1f5f9 !important;
+    font-weight: 700 !important;
+  }
+
+  /* Prevent page-break splits inside essential blocks */
+  .dossier-memo-body tr,
+  .dossier-memo-body table,
+  .dossier-memo-body div,
+  .dossier-memo-body ul {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+}
+

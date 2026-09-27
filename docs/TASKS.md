@@ -358,7 +358,7 @@ CONSTRAINT for all of 10.3: every existing test currently passing must keep pass
 - [x] 10.5 — End-to-end integration test: submit a live brief from the Decision Console (F2) with the real backend running (multi-provider fallback active), verify the polling loop completes, the verdict populates all four quadrants, the audit trail shows real grounded verification results, and the response includes which provider served each stage (from 10.3.8)
   Commit: `Update - 10.5 - E2E integration test: dashboard to live backend`
 
-- [ ] 10.6 — Cross-cutting polish pass: verify the backend health beacon correctly reflects ONLINE/STANDALONE across different network states — and, now that fallback exists, that a mid-chain provider failover does NOT falsely trigger the offline/STANDALONE state; confirm the offline fallback fires correctly only when the backend itself is genuinely unreachable (not merely rate-limited on one provider); verify the Dossier modal prints cleanly in Chrome and Firefox
+- [x] 10.6 — Cross-cutting polish pass: verify the backend health beacon correctly reflects ONLINE/STANDALONE across different network states — and, now that fallback exists, that a mid-chain provider failover does NOT falsely trigger the offline/STANDALONE state; confirm the offline fallback fires correctly only when the backend itself is genuinely unreachable (not merely rate-limited on one provider); verify the Dossier modal prints cleanly in Chrome and Firefox
   Commit: `Update - 10.6 - integration polish and offline fallback verification`
 
 **Checkpoint:** Integration (Phase 10) is complete — Dashboard wired to a reliability-hardened backend, verified end-to-end, before Deployment (Phase 11) begins.

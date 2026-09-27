@@ -73,8 +73,8 @@ export const ExecutiveDossierModal: React.FC<ExecutiveDossierModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm">
-      <div className="bg-[var(--bb-bg-surface)] border border-[var(--bb-border-bright)] rounded max-w-4xl w-full max-h-[90vh] flex flex-col font-mono shadow-2xl overflow-hidden">
+    <div className="dossier-modal-backdrop fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 backdrop-blur-sm">
+      <div className="dossier-modal-content bg-[var(--bb-bg-surface)] border border-[var(--bb-border-bright)] rounded max-w-4xl w-full max-h-[90vh] flex flex-col font-mono shadow-2xl overflow-hidden">
         {/* Modal Header Bar */}
         <div className="bb-panel-header">
           <div className="flex items-center gap-2">
@@ -82,7 +82,7 @@ export const ExecutiveDossierModal: React.FC<ExecutiveDossierModalProps> = ({
             <span>INSTITUTIONAL DECISION BRIEFING DOSSIER // EXECUTIVE SUMMARY</span>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="dossier-header-actions flex items-center gap-2">
             <button
               type="button"
               onClick={handleCopyJson}
@@ -124,7 +124,7 @@ export const ExecutiveDossierModal: React.FC<ExecutiveDossierModalProps> = ({
         </div>
 
         {/* Printable Memo Body */}
-        <div className="p-6 space-y-5 overflow-y-auto bb-scroll text-xs text-[var(--bb-text-primary)]">
+        <div className="dossier-memo-body p-6 space-y-5 overflow-y-auto bb-scroll text-xs text-[var(--bb-text-primary)]">
           {/* Institutional Memo Header */}
           <div className="border-b border-[var(--bb-border-subtle)] pb-4">
             <div className="flex items-center justify-between text-[10px] text-[var(--bb-text-muted)] uppercase mb-2">

@@ -17,6 +17,7 @@ import { PRESET_SCENARIOS, type PresetScenario } from '../data/presetScenarios';
 import {
   submitDecision,
   pollJobStatus,
+  checkBackendHealth,
   type DecisionRequest,
   type DecisionResponse,
   type JobStatusResponse,
@@ -40,15 +41,21 @@ export const Dashboard: React.FC = () => {
 
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Health check for live backend server
+  // Periodic health check for live backend server
   useEffect(() => {
-    fetch('http://127.0.0.1:8000/health', { method: 'GET' })
-      .then((res) => {
-        setIsLiveServerConnected(res.ok);
-      })
-      .catch(() => {
-        setIsLiveServerConnected(false);
-      });
+    let isMounted = true;
+    const runCheck = async () => {
+      const ok = await checkBackendHealth();
+      if (isMounted) {
+        setIsLiveServerConnected(ok);
+      }
+    };
+    runCheck();
+    const interval = setInterval(runCheck, 10000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Cleanup polling timer
@@ -64,6 +71,8 @@ export const Dashboard: React.FC = () => {
     pollTimerRef.current = setInterval(async () => {
       try {
         const status = await pollJobStatus(jobId);
+        // Successful response indicates backend is reachable and responsive
+        setIsLiveServerConnected(true);
         setJobStatus(status.status);
 
         if (status.status === 'completed') {
@@ -92,31 +101,54 @@ export const Dashboard: React.FC = () => {
 
       try {
         const job = await submitDecision(brief);
+        // Successful async submission means backend is connected
+        setIsLiveServerConnected(true);
         setJobStatus(job.status);
         setState('polling');
         startPolling(job.job_id);
-      } catch (err) {
-        console.warn('Live API submission error, falling back to instant client synthesis engine:', err);
-        // If local FastAPI server isn't running or rate-limited, synthesize through matching preset or client engine
-        setTimeout(() => {
-          const match = PRESET_SCENARIOS.find(
-            (p) =>
-              p.brief.entity.toLowerCase().includes(brief.entity.toLowerCase()) ||
-              brief.entity.toLowerCase().includes(p.brief.entity.toLowerCase())
-          ) || PRESET_SCENARIOS[0];
+      } catch (err: unknown) {
+        const errorMsg = err instanceof Error ? err.message : String(err);
+        const isNetworkFailure =
+          err instanceof TypeError ||
+          errorMsg.includes('Failed to fetch') ||
+          errorMsg.includes('NetworkError') ||
+          errorMsg.includes('Network request failed') ||
+          errorMsg.includes('Load failed');
 
-          const clientResult: DecisionResponse = {
-            ...match.result,
-            entity: brief.entity,
-            capability: brief.capability,
-            options: brief.options.length > 0 ? brief.options : match.result.options,
-          };
+        if (isNetworkFailure) {
+          // Backend is genuinely unreachable: update beacon to STANDALONE and engage offline client fallback
+          setIsLiveServerConnected(false);
+          console.warn('Backend genuinely unreachable, triggering offline synthesis fallback:', err);
+          setTimeout(() => {
+            const match =
+              PRESET_SCENARIOS.find(
+                (p) =>
+                  p.brief.entity.toLowerCase().includes(brief.entity.toLowerCase()) ||
+                  brief.entity.toLowerCase().includes(p.brief.entity.toLowerCase())
+              ) || PRESET_SCENARIOS[0];
 
-          setResult(clientResult);
-          setState('completed');
-          setJobStatus('completed');
-          terminalAudio.playSuccessChime();
-        }, 1200);
+            const clientResult: DecisionResponse = {
+              ...match.result,
+              entity: brief.entity,
+              capability: brief.capability,
+              options: brief.options.length > 0 ? brief.options : match.result.options,
+            };
+
+            setResult(clientResult);
+            setState('completed');
+            setJobStatus('completed');
+            terminalAudio.playSuccessChime();
+          }, 1200);
+        } else {
+          // Backend responded with an HTTP error (422, 500, 503, etc.).
+          // Do NOT trigger offline fallback: server is ONLINE. Display actual error on workstation.
+          setIsLiveServerConnected(true);
+          console.error('Backend API error during submission:', err);
+          setError(errorMsg || 'Pipeline execution failed on backend.');
+          setState('failed');
+          setJobStatus('failed');
+          terminalAudio.playWarning();
+        }
       }
     },
     [startPolling]
@@ -339,10 +371,12 @@ export const Dashboard: React.FC = () => {
 
       {/* Executive Briefing Dossier Modal */}
       {dossierModalOpen && (
-        <ExecutiveDossierModal
-          result={result}
-          onClose={() => setDossierModalOpen(false)}
-        />
+        <div className="dossier-modal-container">
+          <ExecutiveDossierModal
+            result={result}
+            onClose={() => setDossierModalOpen(false)}
+          />
+        </div>
       )}
     </div>
   );
