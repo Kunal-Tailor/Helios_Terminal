@@ -309,18 +309,59 @@ Context: the Bloomberg-style decision intelligence workstation at `/dashboard`. 
 
 ## Integration (Phase 10)
 
-Context: wiring the completed Dashboard (Phase 9) to the live backend, end-to-end testing, and cross-cutting polish. Tasks below are known but not yet started.
+Context: wiring the completed Dashboard (Phase 9) to the live backend, multi-provider LLM reliability, end-to-end testing, and cross-cutting polish. The fallback chain (10.3) was moved ahead of the E2E test (10.5) and polish pass (10.6) because both of those tasks require a backend that can actually complete a pipeline run — production testing showed the single-provider setup (Gemini free tier, 5 RPM) stalls mid-run on rate limits, which would make 10.4/10.5 as originally ordered untestable in practice.
 
 - [x] 10.1 — Replace the Phase 8.3 placeholder `/dashboard` route with the real `Dashboard` component from `DashboardPlaceholder.tsx`; confirm the full site routes work together (`/`, `/architecture`, `/about`, `/team`, `/dashboard`)
   Commit: `Update - 10.1 - wire live Dashboard component to /dashboard route`
-- [ ] 10.2 — Wire `VITE_API_BASE_URL` environment variable — create `.env.example` for frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`; confirm the dashboard uses the env var in both dev and production builds
+
+- [x] 10.2 — Wire `VITE_API_BASE_URL` environment variable — create `.env.example` for frontend with `VITE_API_BASE_URL=http://127.0.0.1:8000`; confirm the dashboard uses the env var in both dev and production builds
   Commit: `Update - 10.2 - VITE_API_BASE_URL env var wiring`
-- [ ] 10.3 — Serialize strategic constraints (Data Sovereignty weight, Latency/SLA tolerance) from `BloombergDecisionConsole` into the `DecisionRequest` body sent to `POST /decisions/async` — requires backend schema update if fields are not yet accepted
-  Commit: `Update - 10.3 - serialize strategic constraints into API request`
-- [ ] 10.4 — End-to-end integration test: submit a live brief from the Decision Console (F2) with the real backend running, verify the polling loop completes, the verdict populates all four quadrants, and the audit trail shows real grounded verification results
-  Commit: `Update - 10.4 - E2E integration test: dashboard to live backend`
-- [ ] 10.5 — Cross-cutting polish pass: verify the backend health beacon correctly reflects ONLINE/STANDALONE across different network states; confirm the offline fallback fires correctly when the backend is stopped mid-session; verify the Dossier modal prints cleanly in Chrome and Firefox
-  Commit: `Update - 10.5 - integration polish and offline fallback verification`
+
+### 10.3 — Multi-Provider LLM Fallback Chain (moved ahead of E2E/polish — see context above)
+
+CONSTRAINT for all of 10.3: every existing test currently passing must keep passing, unmodified. The existing call_llm-equivalent function signature in `backend/app/llm/client.py` must not change. `LLM_PROVIDER_MODE=manual` must reproduce the exact current single-provider behavior with zero fallback logic invoked — byte-for-byte the same code path as today.
+
+- [ ] 10.3.1 — Replace `.env.example` (backend) with the 4-provider structure: `LLM_PROVIDER_MODE` (manual|auto), `LLM_PROVIDER_CHAIN` (comma-separated), `LLM_PROVIDER_COOLDOWN_SEC`, `LLM_PROVIDER_MAX_RETRIES_PER_CALL`, and per-provider key/base_url/model triplets for `nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`. Config file only, no code changes.
+  Commit: `Update - 10.3.1 - redesign env for multi-provider fallback chain`
+
+- [ ] 10.3.2 — Extend `backend/app/core/config.py` to parse the new env vars and build a per-provider config object (api_key, base_url, model) for each of the four providers. Unit test for valid and malformed `LLM_PROVIDER_CHAIN` values.
+  Commit: `Update - 10.3.2 - parse multi-provider config`
+
+- [ ] 10.3.3 — Add `backend/app/llm/errors.py` defining `RateLimitError`, `AuthError`, `ServerError`, plus a mapper from HTTP status / provider SDK exception to the right type — reuse existing status-code mapping logic in `client.py` rather than duplicating it. Unit test covering 429, 401/403, 5xx, and the Gemini-specific 503 "UNAVAILABLE" case seen in production logs.
+  Commit: `Update - 10.3.3 - provider error taxonomy`
+
+- [ ] 10.3.4 — Add one adapter function per provider (`nvidia_nim`, `openrouter`, `gemini`, `deepseek_direct`) taking (prompt, config) and returning text, raising `errors.py` exception types on failure. Extract from the provider logic already inside `client.py`'s single call function — don't duplicate. Unit test per adapter with a mocked response.
+  Commit: `Update - 10.3.4 - per-provider adapter functions`
+
+- [ ] 10.3.5 — Add an in-memory cooldown tracker (dict of provider name → cooldown-until timestamp) and a `call_llm_with_fallback()` wrapper: if `LLM_PROVIDER_MODE=manual`, calls the single configured provider directly, no fallback logic; if `auto`, iterates `LLM_PROVIDER_CHAIN`, skips providers in cooldown, on `RateLimitError`/`AuthError`/`ServerError` sets cooldown and tries the next provider for the SAME call, returns on first success, raises `AllProvidersExhaustedError` if the chain is exhausted. Wraps the existing single-provider function — doesn't replace its signature.
+  Commit: `Update - 10.3.5 - cooldown tracker and fallback wrapper`
+
+- [ ] 10.3.6 — Wire `call_llm_with_fallback()` into the six agents' call sites, replacing direct calls to the old single-provider function. Confirm every existing unit/integration test still passes unmodified; only touch a test file if it called the old function by name and needs an import path update (note explicitly in commit message).
+  Commit: `Update - 10.3.6 - wire fallback wrapper into agent call sites`
+
+- [ ] 10.3.7 — Add fallback-specific tests: (a) forced `RateLimitError` on provider 1 falls through to provider 2, (b) all providers exhausted raises `AllProvidersExhaustedError`, (c) a provider within cooldown is skipped without being called again, (d) `LLM_PROVIDER_MODE=manual` never invokes chain/cooldown logic.
+  Commit: `Update - 10.3.7 - fallback and cooldown test coverage`
+
+- [ ] 10.3.8 — Record which provider served each call into the structure backing `recalibration_trail`/verification metadata (Phase 7.5.11), so the API response shows which provider answered each pipeline stage. Update response schema and its test if the shape changes.
+  Commit: `Update - 10.3.8 - log serving provider per call`
+
+- [ ] 10.3.9 — Full manual verification: set `LLM_PROVIDER_CHAIN` to `nvidia_nim,gemini` only, run one real decision brief, then forcibly exhaust `nvidia_nim` and confirm automatic failover to `gemini` mid-run, no manual intervention, no broken endpoint behavior.
+  Commit: `Update - 10.3.9 - end-to-end fallback verification pass`
+
+**Checkpoint:** fallback chain proven under real rate-limit exhaustion, all pre-existing tests still green, `LLM_PROVIDER_MODE=manual` behavior unchanged. This is the checkpoint before 10.4.
+
+---
+
+- [ ] 10.4 — Serialize strategic constraints (Data Sovereignty weight, Latency/SLA tolerance) from `BloombergDecisionConsole` into the `DecisionRequest` body sent to `POST /decisions/async` — requires backend schema update if fields are not yet accepted
+  Commit: `Update - 10.4 - serialize strategic constraints into API request`
+
+- [ ] 10.5 — End-to-end integration test: submit a live brief from the Decision Console (F2) with the real backend running (multi-provider fallback active), verify the polling loop completes, the verdict populates all four quadrants, the audit trail shows real grounded verification results, and the response includes which provider served each stage (from 10.3.8)
+  Commit: `Update - 10.5 - E2E integration test: dashboard to live backend`
+
+- [ ] 10.6 — Cross-cutting polish pass: verify the backend health beacon correctly reflects ONLINE/STANDALONE across different network states — and, now that fallback exists, that a mid-chain provider failover does NOT falsely trigger the offline/STANDALONE state; confirm the offline fallback fires correctly only when the backend itself is genuinely unreachable (not merely rate-limited on one provider); verify the Dossier modal prints cleanly in Chrome and Firefox
+  Commit: `Update - 10.6 - integration polish and offline fallback verification`
+
+**Checkpoint:** Integration (Phase 10) is complete — Dashboard wired to a reliability-hardened backend, verified end-to-end, before Deployment (Phase 11) begins.
 
 ---
 
