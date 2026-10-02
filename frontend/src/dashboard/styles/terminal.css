@@ -46,6 +46,35 @@
   --bb-font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Dynamic Terminal Theme Accents */
+[data-terminal-theme="emerald"] {
+  --bb-amber: #00FF66;
+  --bb-amber-bright: #33FF85;
+  --bb-amber-dim: rgba(0, 255, 102, 0.12);
+  --bb-border-active: #00FF66;
+}
+
+[data-terminal-theme="cyan"] {
+  --bb-amber: #00E5FF;
+  --bb-amber-bright: #33EBFF;
+  --bb-amber-dim: rgba(0, 229, 255, 0.12);
+  --bb-border-active: #00E5FF;
+}
+
+[data-terminal-theme="gold"] {
+  --bb-amber: #FFD700;
+  --bb-amber-bright: #FFE44D;
+  --bb-amber-dim: rgba(255, 215, 0, 0.12);
+  --bb-border-active: #FFD700;
+}
+
+[data-terminal-theme="monochrome"] {
+  --bb-amber: #E2E8F0;
+  --bb-amber-bright: #FFFFFF;
+  --bb-amber-dim: rgba(226, 232, 240, 0.15);
+  --bb-border-active: #FFFFFF;
+}
+
 /* Terminal Container */
 .bloomberg-terminal {
   background-color: var(--bb-bg-base);

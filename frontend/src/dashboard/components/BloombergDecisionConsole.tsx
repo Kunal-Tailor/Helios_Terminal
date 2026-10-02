@@ -9,6 +9,8 @@ import {
   Clock,
   Check,
   Loader2,
+  Code,
+  Wand2,
 } from 'lucide-react';
 import type { DecisionRequest } from '../api';
 import { PRESET_SCENARIOS, type PresetScenario } from '../data/presetScenarios';
@@ -19,6 +21,8 @@ interface BloombergDecisionConsoleProps {
   onSelectPreset: (preset: PresetScenario) => void;
   isSubmitting: boolean;
   selectedPresetId?: string;
+  onOpenWizard?: () => void;
+  onOpenDevConsole?: () => void;
 }
 
 export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> = ({
@@ -26,6 +30,8 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
   onSelectPreset,
   isSubmitting,
   selectedPresetId,
+  onOpenWizard,
+  onOpenDevConsole,
 }) => {
   const [entity, setEntity] = useState('Indian Army Signals Directorate');
   const [capability, setCapability] = useState('Tactical Small Language Model for Edge Comms & SIGINT');
@@ -88,7 +94,40 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
           <span>DECISION EXECUTION CONSOLE</span>
           <span className="text-[10px] text-[var(--bb-text-muted)]">[FUNCTION 01]</span>
         </div>
-        <span className="bb-badge bb-badge-amber">SYNTHESIS_ENGINE</span>
+
+        <div className="flex items-center gap-1.5">
+          {/* Guided Wizard Button (For Normal Users) */}
+          {onOpenWizard && (
+            <button
+              type="button"
+              onClick={() => {
+                terminalAudio.playBlip();
+                onOpenWizard();
+              }}
+              className="px-2 py-0.5 bg-[var(--bb-amber-dim)] border border-[var(--bb-amber)] text-[var(--bb-amber)] hover:bg-[var(--bb-amber)] hover:text-black rounded text-[9px] font-bold transition-all flex items-center gap-1"
+              title="Open 3-Step Guided Sourcing Wizard for Non-Technical Users"
+            >
+              <Wand2 className="w-2.5 h-2.5" />
+              <span>GUIDED WIZARD</span>
+            </button>
+          )}
+
+          {/* Dev API Code Snippets Button (For Coders) */}
+          {onOpenDevConsole && (
+            <button
+              type="button"
+              onClick={() => {
+                terminalAudio.playBlip();
+                onOpenDevConsole();
+              }}
+              className="px-2 py-0.5 bg-[var(--bb-cyan-dim)] border border-[var(--bb-cyan)] text-[var(--bb-cyan)] hover:bg-[var(--bb-cyan)] hover:text-black rounded text-[9px] font-bold transition-all flex items-center gap-1"
+              title="Open cURL, Python & TypeScript API Snippets"
+            >
+              <Code className="w-2.5 h-2.5" />
+              <span>DEV / API CODE</span>
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="p-4 space-y-4 overflow-y-auto bb-scroll flex-1 text-xs font-mono">
@@ -97,7 +136,7 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider flex items-center gap-1">
               <Sparkles className="w-3 h-3 text-[var(--bb-cyan)]" />
-              INSTITUTIONAL PRESETS (FAST LOAD):
+              INSTITUTIONAL BENCHMARKS (1-CLICK LOAD):
             </span>
             <span className="text-[10px] text-[var(--bb-text-dim)]">SELECT TO LOAD</span>
           </div>
@@ -138,9 +177,12 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
         <form onSubmit={handleSubmit} className="space-y-3">
           {/* Target Entity */}
           <div>
-            <label className="block text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider mb-1">
-              01 // TARGET ENTITY / INSTITUTION
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider">
+                01 // TARGET ENTITY / INSTITUTION
+              </label>
+              <span className="text-[9px] text-[var(--bb-text-dim)]">Who is adopting AI?</span>
+            </div>
             <input
               type="text"
               value={entity}
@@ -153,9 +195,12 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
 
           {/* AI Capability Required */}
           <div>
-            <label className="block text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider mb-1">
-              02 // AI CAPABILITY / TECHNICAL BRIEF
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider">
+                02 // AI CAPABILITY / TECHNICAL BRIEF
+              </label>
+              <span className="text-[9px] text-[var(--bb-text-dim)]">What is the technical objective?</span>
+            </div>
             <input
               type="text"
               value={capability}
@@ -172,7 +217,7 @@ export const BloombergDecisionConsole: React.FC<BloombergDecisionConsoleProps> =
               <label className="text-[10px] text-[var(--bb-text-muted)] uppercase tracking-wider">
                 03 // SOURCING CANDIDATE PATHS ({options.length})
               </label>
-              <span className="text-[9px] text-[var(--bb-text-dim)]">AUTO-INFERRED IF EMPTY</span>
+              <span className="text-[9px] text-[var(--bb-text-dim)]">Auto-inferred if empty</span>
             </div>
 
             {/* Chips */}

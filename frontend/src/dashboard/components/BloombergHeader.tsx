@@ -14,6 +14,10 @@ import {
   Grid,
   Globe,
   GitFork,
+  GitCompare,
+  HelpCircle,
+  Wand2,
+  Code,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { terminalAudio } from '../utils/terminalAudio';
@@ -36,6 +40,10 @@ interface BloombergHeaderProps {
   status: 'idle' | 'submitting' | 'polling' | 'completed' | 'failed';
   isLiveServerConnected: boolean;
   selectedPresetCode?: string;
+  onOpenCommandPalette?: () => void;
+  onOpenComparator?: () => void;
+  onOpenWizard?: () => void;
+  onOpenDevConsole?: () => void;
 }
 
 const TICKER_ITEMS = [
@@ -58,6 +66,10 @@ export const BloombergHeader: React.FC<BloombergHeaderProps> = ({
   status,
   isLiveServerConnected,
   selectedPresetCode,
+  onOpenCommandPalette,
+  onOpenComparator,
+  onOpenWizard,
+  onOpenDevConsole,
 }) => {
   const [commandInput, setCommandInput] = useState('');
   const [timeUtc, setTimeUtc] = useState('');
@@ -83,8 +95,16 @@ export const BloombergHeader: React.FC<BloombergHeaderProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
-        inputRef.current?.focus();
         terminalAudio.playBlip();
+        if (onOpenCommandPalette) {
+          onOpenCommandPalette();
+        } else {
+          inputRef.current?.focus();
+        }
+      } else if (e.key === '?' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        e.preventDefault();
+        terminalAudio.playBlip();
+        onOpenCommandPalette?.();
       } else if (e.key === '/' && document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
         e.preventDefault();
         inputRef.current?.focus();
@@ -132,7 +152,7 @@ export const BloombergHeader: React.FC<BloombergHeaderProps> = ({
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onSelectTab]);
+  }, [onSelectTab, onOpenCommandPalette]);
 
   const handleCommandSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -460,6 +480,68 @@ export const BloombergHeader: React.FC<BloombergHeaderProps> = ({
           <GitFork className="w-3 h-3" />
           <span>[F9] SPLC CHAIN</span>
         </button>
+
+        <span className="text-[var(--bb-border-mid)] mx-1">|</span>
+
+        {onOpenWizard && (
+          <button
+            type="button"
+            onClick={() => {
+              terminalAudio.playBlip();
+              onOpenWizard();
+            }}
+            className="px-2.5 py-1 rounded flex items-center gap-1.5 border bg-[var(--bb-bg-raised)] border-[var(--bb-border-subtle)] text-[var(--bb-amber)] hover:border-[var(--bb-amber)] transition-all font-bold"
+            title="Open 3-Step Guided Sourcing Wizard (For Non-Technical Users)"
+          >
+            <Wand2 className="w-3 h-3" />
+            <span>WIZARD 🪄</span>
+          </button>
+        )}
+
+        {onOpenDevConsole && (
+          <button
+            type="button"
+            onClick={() => {
+              terminalAudio.playBlip();
+              onOpenDevConsole();
+            }}
+            className="px-2.5 py-1 rounded flex items-center gap-1.5 border bg-[var(--bb-bg-raised)] border-[var(--bb-border-subtle)] text-[var(--bb-cyan)] hover:border-[var(--bb-cyan)] transition-all font-bold"
+            title="Open Developer Workbench & API Code Snippets"
+          >
+            <Code className="w-3 h-3" />
+            <span>DEV API &lt;/&gt;</span>
+          </button>
+        )}
+
+        {onOpenComparator && (
+          <button
+            type="button"
+            onClick={() => {
+              terminalAudio.playBlip();
+              onOpenComparator();
+            }}
+            className="px-2.5 py-1 rounded flex items-center gap-1.5 border bg-[var(--bb-bg-raised)] border-[var(--bb-border-subtle)] text-[var(--bb-green)] hover:border-[var(--bb-green)] transition-all font-bold"
+            title="Open Cross-Scenario Comparator Diff"
+          >
+            <GitCompare className="w-3 h-3" />
+            <span>COMPARE DIFF</span>
+          </button>
+        )}
+
+        {onOpenCommandPalette && (
+          <button
+            type="button"
+            onClick={() => {
+              terminalAudio.playBlip();
+              onOpenCommandPalette();
+            }}
+            className="px-2.5 py-1 rounded flex items-center gap-1.5 border bg-[var(--bb-bg-raised)] border-[var(--bb-border-subtle)] text-[var(--bb-text-primary)] hover:border-[var(--bb-amber)] hover:text-[var(--bb-amber)] transition-all font-bold"
+            title="Open Command Palette & Hotkeys (Cmd+K or ?)"
+          >
+            <HelpCircle className="w-3 h-3" />
+            <span>PALETTE [⌘K]</span>
+          </button>
+        )}
       </div>
 
       {/* Live AI Market Ticker Tape */}

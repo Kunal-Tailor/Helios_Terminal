@@ -1,4 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
+import confetti from 'canvas-confetti';
+import { Maximize2, Minimize2, ShieldCheck } from 'lucide-react';
 import {
   BloombergHeader,
   type ActiveWorkstationTab,
@@ -13,6 +15,11 @@ import { IntelFeedPanel } from '../components/IntelFeedPanel';
 import { BloombergGlobalMap } from '../components/BloombergGlobalMap';
 import { BloombergSupplyChainGraph } from '../components/BloombergSupplyChainGraph';
 import { ExecutiveDossierModal } from '../components/ExecutiveDossierModal';
+import { CommandPaletteModal, type TerminalTheme } from '../components/CommandPaletteModal';
+import { ScenarioComparatorModal } from '../components/ScenarioComparatorModal';
+import { DeveloperConsoleModal } from '../components/DeveloperConsoleModal';
+import { GuidedDecisionWizardModal } from '../components/GuidedDecisionWizardModal';
+import { ToastProvider, useToast } from '../components/TerminalToast';
 import { PRESET_SCENARIOS, type PresetScenario } from '../data/presetScenarios';
 import {
   submitDecision,
@@ -28,18 +35,34 @@ type WorkstationState = 'idle' | 'submitting' | 'polling' | 'completed' | 'faile
 
 const POLL_INTERVAL_MS = 2500;
 
-export const Dashboard: React.FC = () => {
+const DashboardView: React.FC = () => {
+  const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<ActiveWorkstationTab>('quadrant');
   const [state, setState] = useState<WorkstationState>('completed');
   const [jobStatus, setJobStatus] = useState<JobStatusResponse['status']>('completed');
   const [selectedPreset, setSelectedPreset] = useState<PresetScenario>(PRESET_SCENARIOS[0]);
   const [result, setResult] = useState<DecisionResponse | null>(PRESET_SCENARIOS[0].result);
+  const [currentBrief, setCurrentBrief] = useState<DecisionRequest>(PRESET_SCENARIOS[0].brief);
   const [error, setError] = useState<string | null>(null);
   const [isLiveServerConnected, setIsLiveServerConnected] = useState<boolean>(true);
   const [dossierModalOpen, setDossierModalOpen] = useState<boolean>(false);
+  const [paletteModalOpen, setPaletteModalOpen] = useState<boolean>(false);
+  const [comparatorModalOpen, setComparatorModalOpen] = useState<boolean>(false);
+  const [wizardModalOpen, setWizardModalOpen] = useState<boolean>(false);
+  const [devConsoleModalOpen, setDevConsoleModalOpen] = useState<boolean>(false);
   const [focusedQuadrant, setFocusedQuadrant] = useState<number | null>(null);
 
+  const [theme, setTheme] = useState<TerminalTheme>(() => {
+    return (localStorage.getItem('helios_terminal_theme') as TerminalTheme) || 'amber';
+  });
+
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Apply theme to document element
+  useEffect(() => {
+    document.documentElement.setAttribute('data-terminal-theme', theme);
+    localStorage.setItem('helios_terminal_theme', theme);
+  }, [theme]);
 
   // Periodic health check for live backend server
   useEffect(() => {
@@ -65,43 +88,63 @@ export const Dashboard: React.FC = () => {
     };
   }, []);
 
-  const startPolling = useCallback((jobId: string) => {
-    if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-
-    pollTimerRef.current = setInterval(async () => {
-      try {
-        const status = await pollJobStatus(jobId);
-        // Successful response indicates backend is reachable and responsive
-        setIsLiveServerConnected(true);
-        setJobStatus(status.status);
-
-        if (status.status === 'completed') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setResult(status.result);
-          setState('completed');
-          terminalAudio.playSuccessChime();
-        } else if (status.status === 'failed') {
-          if (pollTimerRef.current) clearInterval(pollTimerRef.current);
-          setError(status.error || 'Pipeline execution encountered a fatal verification exception.');
-          setState('failed');
-          terminalAudio.playWarning();
-        }
-      } catch (err) {
-        console.error('Polling error:', err);
-      }
-    }, POLL_INTERVAL_MS);
+  const triggerCelebration = useCallback(() => {
+    try {
+      confetti({
+        particleCount: 55,
+        spread: 60,
+        origin: { y: 0.8 },
+        colors: ['#FF9E00', '#00FF66', '#00E5FF', '#FFD700'],
+      });
+    } catch {
+      // ignore on environments where canvas isn't supported
+    }
   }, []);
+
+  const startPolling = useCallback(
+    (jobId: string) => {
+      if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+
+      pollTimerRef.current = setInterval(async () => {
+        try {
+          const status = await pollJobStatus(jobId);
+          setIsLiveServerConnected(true);
+          setJobStatus(status.status);
+
+          if (status.status === 'completed') {
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            setResult(status.result);
+            setState('completed');
+            terminalAudio.playSuccessChime();
+            triggerCelebration();
+            showToast('success', 'VERDICT SYNTHESIZED', '6-Agent pipeline verified claim grounding');
+          } else if (status.status === 'failed') {
+            if (pollTimerRef.current) clearInterval(pollTimerRef.current);
+            const errText = status.error || 'Pipeline execution encountered a fatal verification exception.';
+            setError(errText);
+            setState('failed');
+            terminalAudio.playWarning();
+            showToast('error', 'PIPELINE FAILED', errText);
+          }
+        } catch (err) {
+          console.error('Polling error:', err);
+        }
+      }, POLL_INTERVAL_MS);
+    },
+    [showToast, triggerCelebration]
+  );
 
   const handleSubmit = useCallback(
     async (brief: DecisionRequest) => {
+      setCurrentBrief(brief);
       setState('submitting');
       setError(null);
       setResult(null);
       terminalAudio.playGoCommand();
+      showToast('info', 'DECISION SUBMITTED', `Evaluating ${brief.entity} (${brief.options.length} paths)`);
 
       try {
         const job = await submitDecision(brief);
-        // Successful async submission means backend is connected
         setIsLiveServerConnected(true);
         setJobStatus(job.status);
         setState('polling');
@@ -116,9 +159,9 @@ export const Dashboard: React.FC = () => {
           errorMsg.includes('Load failed');
 
         if (isNetworkFailure) {
-          // Backend is genuinely unreachable: update beacon to STANDALONE and engage offline client fallback
           setIsLiveServerConnected(false);
           console.warn('Backend genuinely unreachable, triggering offline synthesis fallback:', err);
+          showToast('warning', 'CLIENT SYNTHESIS MODE', 'Backend unreachable. Running client verification engine.');
           setTimeout(() => {
             const match =
               PRESET_SCENARIOS.find(
@@ -138,28 +181,31 @@ export const Dashboard: React.FC = () => {
             setState('completed');
             setJobStatus('completed');
             terminalAudio.playSuccessChime();
+            triggerCelebration();
+            showToast('success', 'CLIENT VERDICT READY', `Synthesized recommendation for ${brief.entity}`);
           }, 1200);
         } else {
-          // Backend responded with an HTTP error (422, 500, 503, etc.).
-          // Do NOT trigger offline fallback: server is ONLINE. Display actual error on workstation.
           setIsLiveServerConnected(true);
           console.error('Backend API error during submission:', err);
           setError(errorMsg || 'Pipeline execution failed on backend.');
           setState('failed');
           setJobStatus('failed');
           terminalAudio.playWarning();
+          showToast('error', 'EXECUTION ERROR', errorMsg);
         }
       }
     },
-    [startPolling]
+    [startPolling, showToast, triggerCelebration]
   );
 
   const handleSelectPreset = (preset: PresetScenario) => {
     setSelectedPreset(preset);
+    setCurrentBrief(preset.brief);
     setResult(preset.result);
     setState('completed');
     setJobStatus('completed');
     setError(null);
+    showToast('info', 'PRESET LOADED', `${preset.code}: ${preset.brief.entity}`);
   };
 
   const handleExecuteCommand = (cmd: string) => {
@@ -167,23 +213,39 @@ export const Dashboard: React.FC = () => {
 
     if (trimmed === 'EVAL' || trimmed === 'RUN' || trimmed === 'F2') {
       setActiveTab('decision');
+      showToast('info', 'VIEW: DECISION CONSOLE');
     } else if (trimmed === 'QUAD' || trimmed === 'GRID' || trimmed === 'F1') {
       setActiveTab('quadrant');
       setFocusedQuadrant(null);
+      showToast('info', 'VIEW: 4-QUADRANT GRID');
     } else if (trimmed === 'TRAJ' || trimmed === 'CHART' || trimmed === 'F3') {
       setActiveTab('trajectory');
+      showToast('info', 'VIEW: TRAJECTORY SIMULATOR');
     } else if (trimmed === 'LOCKIN' || trimmed === 'MATRIX' || trimmed === 'F4') {
       setActiveTab('lockin');
+      showToast('info', 'VIEW: LOCK-IN MATRIX');
     } else if (trimmed === 'AUDIT' || trimmed === 'VERIFY' || trimmed === 'F5') {
       setActiveTab('audit');
+      showToast('info', 'VIEW: AUDIT INSPECTOR');
     } else if (trimmed === 'FEED' || trimmed === 'STREAM' || trimmed === 'F6') {
       setActiveTab('feed');
+      showToast('info', 'VIEW: INTEL STREAM');
     } else if (trimmed === 'DOSSIER' || trimmed === 'PRINT' || trimmed === 'F7') {
       setDossierModalOpen(true);
     } else if (trimmed === 'BMAP' || trimmed === 'MAP' || trimmed === 'INFRA' || trimmed === 'F8') {
       setActiveTab('bmap');
+      showToast('info', 'VIEW: BMAP INFRASTRUCTURE');
     } else if (trimmed === 'SPLC' || trimmed === 'CHAIN' || trimmed === 'SUPPLY' || trimmed === 'F9') {
       setActiveTab('splc');
+      showToast('info', 'VIEW: SPLC SUPPLY CHAIN');
+    } else if (trimmed === 'COMPARE' || trimmed === 'DIFF') {
+      setComparatorModalOpen(true);
+    } else if (trimmed === 'WIZARD' || trimmed === 'GUIDE') {
+      setWizardModalOpen(true);
+    } else if (trimmed === 'DEV' || trimmed === 'API' || trimmed === 'CURL' || trimmed === 'CODE') {
+      setDevConsoleModalOpen(true);
+    } else if (trimmed === 'PALETTE' || trimmed === 'HOTKEYS' || trimmed === 'HELP') {
+      setPaletteModalOpen(true);
     } else if (trimmed.startsWith('DEMO DEF')) {
       handleSelectPreset(PRESET_SCENARIOS[0]);
     } else if (trimmed.startsWith('DEMO FIN')) {
@@ -195,22 +257,15 @@ export const Dashboard: React.FC = () => {
       setState('idle');
       setJobStatus('queued');
       setError(null);
-    } else if (trimmed === 'HELP') {
-      alert(
-        'HELIOS BLOOMBERG COMMAND REFERENCE:\n\n' +
-        '• BMAP <GO>   : Global AI Infrastructure & Sovereignty Map [F8]\n' +
-        '• SPLC <GO>   : Multi-Tier AI Supply Chain & Dependency Graph [F9]\n' +
-        '• EVAL <GO>   : Open Decision Execution Console [F2]\n' +
-        '• QUAD <GO>   : Open 4-Quadrant Launchpad Grid [F1]\n' +
-        '• TRAJ <GO>   : Open 5-Year Trajectory Simulator [F3]\n' +
-        '• LOCKIN <GO> : Open Lock-In Severity Matrix [F4]\n' +
-        '• AUDIT <GO>  : Open Grounded Verification Inspector [F5]\n' +
-        '• FEED <GO>   : Open Live Intelligence Stream [F6]\n' +
-        '• DOSSIER <GO>: Generate Printable Executive Memo [F7]\n' +
-        '• DEMO DEF/FIN/MED : Load Institutional Benchmarks\n' +
-        '• CLEAR       : Reset active decision state'
-      );
+      showToast('warning', 'STATE CLEARED', 'Active decision brief reset to clean slate');
+    } else {
+      setPaletteModalOpen(true);
     }
+  };
+
+  const toggleQuadrantFocus = (quadrantNumber: number) => {
+    terminalAudio.playBlip();
+    setFocusedQuadrant((prev) => (prev === quadrantNumber ? null : quadrantNumber));
   };
 
   return (
@@ -229,6 +284,10 @@ export const Dashboard: React.FC = () => {
         status={state}
         isLiveServerConnected={isLiveServerConnected}
         selectedPresetCode={selectedPreset?.code}
+        onOpenCommandPalette={() => setPaletteModalOpen(true)}
+        onOpenComparator={() => setComparatorModalOpen(true)}
+        onOpenWizard={() => setWizardModalOpen(true)}
+        onOpenDevConsole={() => setDevConsoleModalOpen(true)}
       />
 
       {/* Main Workstation Viewport */}
@@ -238,24 +297,50 @@ export const Dashboard: React.FC = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 grid-rows-2 gap-2 flex-1 min-h-0">
             {/* QUADRANT 1: DECISION EXECUTION CONSOLE */}
             <div
-              className={`bb-panel rounded overflow-hidden flex flex-col ${
-                focusedQuadrant === 1 ? 'col-span-2 row-span-2 z-20' : ''
+              className={`bb-panel rounded overflow-hidden flex flex-col relative transition-all ${
+                focusedQuadrant === 1
+                  ? 'col-span-2 row-span-2 z-20 shadow-2xl border-[var(--bb-amber)]'
+                  : focusedQuadrant !== null
+                  ? 'hidden'
+                  : ''
               }`}
             >
+              <button
+                type="button"
+                onClick={() => toggleQuadrantFocus(1)}
+                className="absolute right-2 top-2 z-10 p-1 text-[var(--bb-text-muted)] hover:text-[var(--bb-amber)] bg-[var(--bb-bg-surface)] border border-[var(--bb-border-subtle)] rounded transition-colors"
+                title={focusedQuadrant === 1 ? 'Restore 4-Quadrant View' : 'Maximize Quadrant 1'}
+              >
+                {focusedQuadrant === 1 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
               <BloombergDecisionConsole
                 onSubmit={handleSubmit}
                 onSelectPreset={handleSelectPreset}
                 isSubmitting={state === 'submitting' || state === 'polling'}
                 selectedPresetId={selectedPreset?.id}
+                onOpenWizard={() => setWizardModalOpen(true)}
+                onOpenDevConsole={() => setDevConsoleModalOpen(true)}
               />
             </div>
 
             {/* QUADRANT 2: 6-STAGE AGENT PIPELINE TOPOLOGY */}
             <div
-              className={`bb-panel rounded overflow-hidden flex flex-col ${
-                focusedQuadrant === 2 ? 'col-span-2 row-span-2 z-20' : ''
+              className={`bb-panel rounded overflow-hidden flex flex-col relative transition-all ${
+                focusedQuadrant === 2
+                  ? 'col-span-2 row-span-2 z-20 shadow-2xl border-[var(--bb-cyan)]'
+                  : focusedQuadrant !== null
+                  ? 'hidden'
+                  : ''
               }`}
             >
+              <button
+                type="button"
+                onClick={() => toggleQuadrantFocus(2)}
+                className="absolute right-2 top-2 z-10 p-1 text-[var(--bb-text-muted)] hover:text-[var(--bb-cyan)] bg-[var(--bb-bg-surface)] border border-[var(--bb-border-subtle)] rounded transition-colors"
+                title={focusedQuadrant === 2 ? 'Restore 4-Quadrant View' : 'Maximize Quadrant 2'}
+              >
+                {focusedQuadrant === 2 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
               <AgentPipelineTopology
                 status={state === 'idle' ? 'idle' : jobStatus}
                 verificationResults={result?.verification_results}
@@ -267,10 +352,22 @@ export const Dashboard: React.FC = () => {
 
             {/* QUADRANT 3: INSTITUTIONAL VERDICT PANEL */}
             <div
-              className={`bb-panel rounded overflow-hidden flex flex-col ${
-                focusedQuadrant === 3 ? 'col-span-2 row-span-2 z-20' : ''
+              className={`bb-panel rounded overflow-hidden flex flex-col relative transition-all ${
+                focusedQuadrant === 3
+                  ? 'col-span-2 row-span-2 z-20 shadow-2xl border-[var(--bb-green)]'
+                  : focusedQuadrant !== null
+                  ? 'hidden'
+                  : ''
               }`}
             >
+              <button
+                type="button"
+                onClick={() => toggleQuadrantFocus(3)}
+                className="absolute right-2 top-2 z-10 p-1 text-[var(--bb-text-muted)] hover:text-[var(--bb-green)] bg-[var(--bb-bg-surface)] border border-[var(--bb-border-subtle)] rounded transition-colors"
+                title={focusedQuadrant === 3 ? 'Restore 4-Quadrant View' : 'Maximize Quadrant 3'}
+              >
+                {focusedQuadrant === 3 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
               <InstitutionalVerdictPanel
                 verdict={result?.verdict || null}
                 caveats={result?.partial_verdict_caveats}
@@ -280,10 +377,22 @@ export const Dashboard: React.FC = () => {
 
             {/* QUADRANT 4: 5-YEAR TRAJECTORY & RISK MATRIX */}
             <div
-              className={`bb-panel rounded overflow-hidden flex flex-col ${
-                focusedQuadrant === 4 ? 'col-span-2 row-span-2 z-20' : ''
+              className={`bb-panel rounded overflow-hidden flex flex-col relative transition-all ${
+                focusedQuadrant === 4
+                  ? 'col-span-2 row-span-2 z-20 shadow-2xl border-[var(--bb-amber)]'
+                  : focusedQuadrant !== null
+                  ? 'hidden'
+                  : ''
               }`}
             >
+              <button
+                type="button"
+                onClick={() => toggleQuadrantFocus(4)}
+                className="absolute right-2 top-2 z-10 p-1 text-[var(--bb-text-muted)] hover:text-[var(--bb-amber)] bg-[var(--bb-bg-surface)] border border-[var(--bb-border-subtle)] rounded transition-colors"
+                title={focusedQuadrant === 4 ? 'Restore 4-Quadrant View' : 'Maximize Quadrant 4'}
+              >
+                {focusedQuadrant === 4 ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
+              </button>
               <TrajectoryChartPanel
                 comparison={result?.verdict?.cross_path_comparison}
                 trajectoryData={selectedPreset?.trajectoryData}
@@ -300,6 +409,8 @@ export const Dashboard: React.FC = () => {
               onSelectPreset={handleSelectPreset}
               isSubmitting={state === 'submitting' || state === 'polling'}
               selectedPresetId={selectedPreset?.id}
+              onOpenWizard={() => setWizardModalOpen(true)}
+              onOpenDevConsole={() => setDevConsoleModalOpen(true)}
             />
           </div>
         )}
@@ -360,12 +471,16 @@ export const Dashboard: React.FC = () => {
       <footer className="px-3 py-1.5 bg-[var(--bb-bg-surface)] border-t border-[var(--bb-border-subtle)] flex items-center justify-between text-[10px] font-mono text-[var(--bb-text-muted)] select-none">
         <div className="flex items-center gap-3">
           <span className="text-[var(--bb-amber)] font-bold">HELIOS_WORKSTATION // v2.4</span>
-          <span>TERMINAL MODE: LAUNCHPAD_GRID</span>
-          <span>HOTKEYS: [F1-F9] OR [/] FOR COMMAND BAR</span>
+          <span>TERMINAL MODE: {activeTab.toUpperCase()}</span>
+          <span>HOTKEYS: [F1-F9] | [⌘K / ?] COMMAND PALETTE</span>
         </div>
         <div className="flex items-center gap-3">
+          <span>THEME: {theme.toUpperCase()}</span>
+          <span className="text-[var(--bb-border-mid)]">|</span>
           <span>PIPELINE: 6 AGENTS // 18 SUB-AGENTS</span>
-          <span className="text-[var(--bb-green)]">VERIFICATION GATE: ENFORCED</span>
+          <span className="text-[var(--bb-green)] flex items-center gap-1">
+            <ShieldCheck className="w-3 h-3" /> VERIFICATION GATE: ENFORCED
+          </span>
         </div>
       </footer>
 
@@ -378,6 +493,47 @@ export const Dashboard: React.FC = () => {
           />
         </div>
       )}
+
+      {/* Command Palette & Hotkeys Modal */}
+      <CommandPaletteModal
+        isOpen={paletteModalOpen}
+        onClose={() => setPaletteModalOpen(false)}
+        onExecuteCommand={handleExecuteCommand}
+        onSelectPreset={handleSelectPreset}
+        currentTheme={theme}
+        onSelectTheme={(newTheme) => setTheme(newTheme)}
+      />
+
+      {/* Cross-Scenario Comparator Diff Modal */}
+      <ScenarioComparatorModal
+        currentResult={result}
+        isOpen={comparatorModalOpen}
+        onClose={() => setComparatorModalOpen(false)}
+      />
+
+      {/* Developer Workbench Modal */}
+      <DeveloperConsoleModal
+        isOpen={devConsoleModalOpen}
+        onClose={() => setDevConsoleModalOpen(false)}
+        activeBrief={currentBrief}
+        currentResult={result}
+        onSubmitJson={handleSubmit}
+      />
+
+      {/* Guided Decision Wizard Modal */}
+      <GuidedDecisionWizardModal
+        isOpen={wizardModalOpen}
+        onClose={() => setWizardModalOpen(false)}
+        onLaunchBrief={handleSubmit}
+      />
     </div>
+  );
+};
+
+export const Dashboard: React.FC = () => {
+  return (
+    <ToastProvider>
+      <DashboardView />
+    </ToastProvider>
   );
 };

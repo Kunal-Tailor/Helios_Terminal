@@ -324,6 +324,109 @@ Full-viewport overlay (`z-50`) with a printable memo layout:
 
 ---
 
+## `TerminalToast.tsx`
+
+**Type:** Notification context & toast alert overlay  
+**Used in:** Application-wide notification viewport (`z-50`)
+
+### Exports
+- `ToastProvider`: Wraps workstation and manages queue of up to 5 concurrent toast notices.
+- `useToast()`: Hook providing `showToast(type, title, message)` and `removeToast(id)`.
+
+---
+
+## `CommandPaletteModal.tsx`
+
+**Type:** Modal overlay for universal search, quick functions, and themes  
+**Used in:** Triggered via `Cmd+K`, `/`, `?`, or header action button
+
+### Props
+
+```typescript
+interface CommandPaletteModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onExecuteCommand: (cmd: string) => void;
+  onSelectPreset: (preset: PresetScenario) => void;
+  currentTheme: TerminalTheme;
+  onSelectTheme: (theme: TerminalTheme) => void;
+}
+```
+
+### Features
+- Real-time filtered search for terminal functions (`QUAD`, `EVAL`, `TRAJ`, `LOCKIN`, `AUDIT`, `BMAP`, `SPLC`, `DOSSIER`).
+- Quick preset launcher for all institutional benchmarks.
+- Accent palette switcher (Amber, Emerald, Cyan, Gold, Monochrome).
+- Keyboard shortcut index.
+
+---
+
+## `ScenarioComparatorModal.tsx`
+
+**Type:** Comparative decision diff modal  
+**Used in:** Triggered via `COMPARE DIFF` button or `COMPARE <GO>` command
+
+### Props
+
+```typescript
+interface ScenarioComparatorModalProps {
+  currentResult: DecisionResponse | null;
+  isOpen: boolean;
+  onClose: () => void;
+}
+```
+
+### Features
+- Side-by-side comparative table against any selected institutional benchmark.
+- Compares strategic sovereignty constraints, latency SLA budgets, candidate options count, and verification gate audit passes.
+
+---
+
+## `DeveloperConsoleModal.tsx`
+
+**Type:** Developer & API Code Generator Modal  
+**Used in:** Triggered via `DEV API </>` button, `DEV <GO>` command, or Decision Console action
+
+### Props
+
+```typescript
+interface DeveloperConsoleModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  activeBrief: DecisionRequest;
+  currentResult: DecisionResponse | null;
+  onSubmitJson: (brief: DecisionRequest) => void;
+}
+```
+
+### Features
+- Generates syntax-highlighted code snippets for cURL, Python (Async HTTPX), and TypeScript.
+- Interactive raw JSON schema editor with syntax error validation and direct execution.
+- Live AST response inspector.
+
+---
+
+## `GuidedDecisionWizardModal.tsx`
+
+**Type:** 3-Step Guided Sourcing Decision Wizard  
+**Used in:** Triggered via `WIZARD 🪄` button, `WIZARD <GO>` command, or Decision Console action
+
+### Props
+
+```typescript
+interface GuidedDecisionWizardModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onLaunchBrief: (brief: DecisionRequest) => void;
+}
+```
+
+### Features
+- 3-step visual cards for selecting Organization Profile, Capability Objectives, and Strategic Constraints.
+- Auto-configures candidate paths and triggers execution with 1 click.
+
+---
+
 ## `DecisionForm.tsx`, `PathCards.tsx`, `PipelineProgress.tsx`, `VerdictPanel.tsx`
 
 These are additional component files present in the `components/` directory. They serve as sub-components or alternate renderings used within the primary components above. `PathCards.tsx` renders the per-path comparison cards used in `TrajectoryChartPanel`. `PipelineProgress.tsx` provides the inline progress representation embedded in `AgentPipelineTopology`. `VerdictPanel.tsx` and `DecisionForm.tsx` may serve as composable sub-panels within their respective parent components.

@@ -1,12 +1,11 @@
-import React from 'react';
-import { 
-  Database, 
-  Layers3, 
-  Route, 
-  ChartNoAxesCombined, 
-  Link2, 
-  Scale, 
-  CircleCheck, 
+import {
+  Database,
+  Layers3,
+  Route,
+  ChartNoAxesCombined,
+  Link2,
+  Scale,
+  CircleCheck,
   ArrowRight
 } from 'lucide-react';
 import { useScrollReveal } from '../../shared/useScrollReveal';
@@ -103,19 +102,19 @@ export const Architecture: React.FC = () => {
       <main ref={containerRef} className="flex-1 flex flex-col w-full max-w-7xl mx-auto px-6 py-12 gap-20">
         {/* Intro */}
         <section className="max-w-[700px] mx-auto text-center flex flex-col items-center gap-6 mt-6">
-          <span 
+          <span
             className="hero-reveal inline-block px-3 py-1 rounded-site border border-site-border bg-site-surface text-site-text-secondary text-sm font-mono tracking-wider uppercase"
             style={{ '--reveal-delay': '0ms' } as React.CSSProperties}
           >
             Architecture / conditional graph
           </span>
-          <h1 
+          <h1
             className="hero-reveal text-4xl md:text-5xl lg:text-6xl font-serif tracking-tight text-site-text-primary leading-tight"
             style={{ '--reveal-delay': '100ms' } as React.CSSProperties}
           >
             How Helios thinks through a sourcing decision.
           </h1>
-          <p 
+          <p
             className="hero-reveal text-lg md:text-xl text-site-text-secondary leading-relaxed"
             style={{ '--reveal-delay': '200ms' } as React.CSSProperties}
           >
@@ -132,7 +131,7 @@ export const Architecture: React.FC = () => {
           <div className="scroll-reveal w-full overflow-hidden bg-site-surface border border-site-border rounded-site py-8 px-4 flex justify-center">
             <Mermaid chart={pipelineChart} />
           </div>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-6 xl:gap-8 relative">
             {stages.map((stage) => (
               <div key={stage.number} className="scroll-reveal relative flex flex-col h-full bg-site-surface border border-site-border rounded-site p-6 hover:-translate-y-1 transition-transform duration-300 group z-10">
@@ -147,7 +146,7 @@ export const Architecture: React.FC = () => {
           </div>
 
           <div className="scroll-reveal flex items-center justify-center gap-4 mt-4 px-6 text-sm text-site-text-secondary font-sans border-t border-dashed border-site-border pt-6 max-w-fit mx-auto">
-            <span className="inline-block border border-dashed border-site-text-secondary w-8" /> 
+            <span className="inline-block border border-dashed border-site-text-secondary w-8" />
             Dashed lines represent backward recalibration loops where insufficient context returns to an earlier stage.
           </div>
         </section>

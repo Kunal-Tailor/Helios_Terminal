@@ -114,9 +114,99 @@ The dashboard renders exactly one active view at a time based on `activeTab: Act
 - Accessible via F7 / DOSSIER command / header tab button.
 - Opens as a full-viewport overlay on top of the active workstation view.
 - Renders a printable executive briefing memo from the current `result` state.
+- Supports 1-click JSON clipboard export, CSV metrics table download, and print stylesheet.
 - Dismissed via the modal's close button; returns to the previously active view.
 
 **Implemented by:** `ExecutiveDossierModal.tsx`, `DashboardPlaceholder.tsx#dossierModalOpen`
+
+---
+
+## FR-D10: Terminal Toast notification system
+
+- Global monospace terminal-themed toast alert engine (`ToastProvider` / `useToast`).
+- Dispatches feedback on decision submission, preset loading, pipeline completion, clipboard copy actions, and error warnings.
+- Automatically clears after 4.5 seconds with audio-cue integration.
+
+**Implemented by:** `TerminalToast.tsx`, `DashboardPlaceholder.tsx`
+
+---
+
+## FR-D11: Command Palette & Global Search Modal (`Cmd+K` / `?`)
+
+- Quick command search and execution modal accessible via `Cmd+K`, `/`, or `?`.
+- Provides instant filterable function launcher, preset scenario loader, hotkey cheatsheet, and theme switcher.
+
+**Implemented by:** `CommandPaletteModal.tsx`, `BloombergHeader.tsx`
+
+---
+
+## FR-D12: Dynamic Terminal Accent Themes
+
+- Supports 5 curated high-contrast terminal palettes:
+  - **Bloomberg Classic Amber** (`#FF9E00`)
+  - **Matrix Emerald Green** (`#00FF66`)
+  - **Cyberpunk Cyan Blue** (`#00E5FF`)
+  - **Institutional Gold** (`#FFD700`)
+  - **Monochrome Obsidian** (`#E2E8F0`)
+- Persists user selection in `localStorage` under `helios_terminal_theme`.
+
+**Implemented by:** `terminal.css`, `CommandPaletteModal.tsx`, `DashboardPlaceholder.tsx`
+
+---
+
+## FR-D13: Cross-Scenario Comparator Diff Inspector
+
+- Side-by-side strategic diff inspector accessible via `COMPARE DIFF` ribbon button or command bar.
+- Compares active decision with institutional benchmarks across strategic vectors (Sovereignty priority, Latency budget, Lock-in count, Verification gates passed).
+
+**Implemented by:** `ScenarioComparatorModal.tsx`, `BloombergHeader.tsx`
+
+---
+
+## FR-D14: Quadrant Launchpad Maximize & Restore Controls
+
+- Each quadrant panel in the 4-Quadrant Grid (Console, Topology, Verdict, Trajectory) features a dedicated Maximize / Restore toggle button.
+- Expands any quadrant to fill the workstation grid and restores on demand.
+
+**Implemented by:** `DashboardPlaceholder.tsx#focusedQuadrant`
+
+---
+
+---
+
+## FR-D16: Developer & Coder Workbench (API Code Generator & Raw JSON Sandbox)
+
+- Accessible via `DEV API </>` button, `DEV <GO>` / `API <GO>` command bar.
+- Generates copy-paste ready API code snippets in real-time based on active decision state:
+  - **cURL CLI**
+  - **Python** (Async HTTPX client with automated polling loop)
+  - **TypeScript** (Fetch wrapper with typed interfaces)
+- Provides an interactive **JSON Payload Editor** allowing developers to type custom payloads and directly trigger pipeline execution.
+- Live AST viewer for inspecting raw JSON backend responses.
+
+**Implemented by:** `DeveloperConsoleModal.tsx`, `BloombergDecisionConsole.tsx`
+
+---
+
+## FR-D17: Guided Sourcing Assistant (3-Step Wizard for General Users)
+
+- Accessible via `WIZARD 🪄` button or `WIZARD <GO>` command bar.
+- Step 1: Select Institutional Profile (Defense, Banking, Healthcare, Public Sector).
+- Step 2: Choose standardized AI technical capability and auto-populate candidate sourcing paths.
+- Step 3: Configure strategic priorities (Air-gap vs Latency) and trigger 1-click execution.
+
+**Implemented by:** `GuidedDecisionWizardModal.tsx`, `BloombergDecisionConsole.tsx`
+
+---
+
+## FR-D18: Plain-English Executive Summary & Risk Gauge Toggle
+
+- In `InstitutionalVerdictPanel.tsx`, users can switch between:
+  - **TECHNICAL**: In-depth orchestrator narrative with formal AST linkages.
+  - **PLAIN ENGLISH**: Clear, direct breakdown of "The Bottom Line", "Why Helios recommends this", and risk severity tiers (Low, Moderate, High Hazard).
+- 1-Click Copy Verdict summary to clipboard with toast confirmation.
+
+**Implemented by:** `InstitutionalVerdictPanel.tsx`
 
 ---
 
@@ -124,6 +214,7 @@ The dashboard renders exactly one active view at a time based on `activeTab: Act
 
 - **No authentication:** the dashboard is accessible at `/dashboard` without login.
 - **No persistence:** results are held in React state only; page refresh resets to the first preset.
-- **No mobile layout:** desktop-only; no responsive breakpoints in the dashboard CSS.
+- **No mobile layout:** desktop-only (1280px+ minimum recommended width).
 - **No WebSocket:** polling via `setInterval` is used rather than a persistent WebSocket connection.
-- **Strategic constraints UI:** the Sovereignty / Latency toggles in the Decision Console are rendered but not serialized into the API request body in the current build.
+
+
